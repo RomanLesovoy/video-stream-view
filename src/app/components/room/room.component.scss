@@ -1,0 +1,15 @@
+.room-container {
+  padding: 20px;
+}
+.video-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+.video-item {
+  width: 100%;
+}
+video {
+  width: 100%;
+  border-radius: 8px;
+}

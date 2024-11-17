@@ -1,0 +1,12 @@
+<section class="controls">
+  <button 
+    (click)="toggleCamera()" 
+    [class.disabled]="!(mediaState$ | async)?.isCameraEnabled">
+    {{ (mediaState$ | async)?.isCameraEnabled ? 'Отключить камеру' : 'Включить камеру' }}
+  </button>
+  <button 
+    (click)="toggleMicrophone()" 
+    [class.disabled]="!(mediaState$ | async)?.isMicEnabled">
+    {{ (mediaState$ | async)?.isMicEnabled ? 'Отключить микрофон' : 'Включить микрофон' }}
+  </button>
+</section>

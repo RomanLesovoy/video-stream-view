@@ -1,0 +1,8 @@
+<section class="preview-container">
+  <app-video
+    [stream]="stream$ | async"
+    [username]="'You'"
+    [muted]="true">
+  </app-video>
+  <app-media-controls></app-media-controls>
+</section>

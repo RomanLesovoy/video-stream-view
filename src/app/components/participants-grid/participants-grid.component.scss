@@ -1,0 +1,25 @@
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  padding: 20px;
+  
+  .participant-item {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .no-participants {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    
+    p {
+      margin: 0;
+      color: #6c757d;
+      font-size: 1.1em;
+    }
+  }
+}

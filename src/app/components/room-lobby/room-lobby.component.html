@@ -1,0 +1,10 @@
+<section class="lobby-container">
+  <div class="preview-section">
+    <app-preview></app-preview>
+  </div>
+
+  <app-room-join
+    (createRoom)="createRoom()"
+    (joinRoom)="joinRoom($event)">
+  </app-room-join>
+</section>

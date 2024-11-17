@@ -1,0 +1,17 @@
+<section class="room-join">
+  <button class="create-btn" (click)="onCreateRoom()">
+    Создать комнату
+  </button>
+  <div class="join-container">
+    <input 
+      [(ngModel)]="roomId" 
+      placeholder="ID комнаты"
+      class="room-input">
+    <button 
+      class="join-btn" 
+      [disabled]="!roomId.trim()"
+      (click)="onJoinRoom()">
+      Присоединиться
+    </button>
+  </div>
+</section>

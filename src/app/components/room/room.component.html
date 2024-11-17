@@ -1,0 +1,11 @@
+<section class="room-container">
+  User: {{ username }}
+  socket id {{ socket.id }}
+
+  @if (!isInRoom) {
+    <app-room-lobby></app-room-lobby>
+  } @else {
+    <app-participants-grid></app-participants-grid>
+  }
+
+</section>
