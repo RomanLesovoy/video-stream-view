@@ -53,6 +53,7 @@ export class WebRTCService {
     // Когда получаем запрос на offer
     this.socket.on('request-offer', async ({ socketId }) => {
       console.log('Received request for offer from:', socketId);
+      await this.ensureLocalStream();
       await this.createAndSendOffer(socketId);
     });
 
@@ -72,19 +73,45 @@ export class WebRTCService {
     });
   }
 
+  // Новый метод для проверки и ожидания локального стрима
+  private async ensureLocalStream(): Promise<void> {
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (!this.localStreamService.getStream() && attempts < maxAttempts) {
+      console.log('Waiting for local stream...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      attempts++;
+    }
+
+    if (!this.localStreamService.getStream()) {
+      console.error('Failed to get local stream after waiting');
+      throw new Error('No local stream available');
+    }
+  }
+
   // Создание нового RTCPeerConnection
   private async createPeerConnection(socketId: string): Promise<RTCPeerConnection> {
+    console.log('Creating peer connection for:', socketId);
     const peerConnection = new RTCPeerConnection(this.configuration);
     
     // Добавляем локальные треки
+    await this.ensureLocalStream();
     const localStream = this.localStreamService.getStream();
-    localStream?.getTracks().forEach(track => {
-      peerConnection.addTrack(track, localStream);
-    });
+    
+    if (localStream) {
+      console.log('Adding local tracks to peer connection');
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+    } else {
+      throw new Error('No local stream available after ensuring its presence');
+    }
 
     // Обработка ICE кандидатов
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log('Sending ICE candidate to:', socketId);
         this.socket.emit('ice-candidate', {
           target: socketId,
           candidate: event.candidate
@@ -92,8 +119,19 @@ export class WebRTCService {
       }
     };
 
+    // Обработка состояния ICE подключения
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log('ICE connection state for', socketId, ':', peerConnection.iceConnectionState);
+    };
+
+    // Обработка состояния подключения
+    peerConnection.onconnectionstatechange = () => {
+      console.log('Connection state for', socketId, ':', peerConnection.connectionState);
+    };
+
     // Обработка входящих треков
     peerConnection.ontrack = (event) => {
+      console.log('Received tracks from:', socketId, event.streams);
       this.handleTrackEvent(event, socketId);
     };
 
@@ -104,11 +142,18 @@ export class WebRTCService {
   // Создание и отправка offer
   private async createAndSendOffer(socketId: string): Promise<void> {
     try {
+      console.log('Creating offer for:', socketId);
       const peerConnection = await this.createOrGetPeerConnection(socketId);
 
-      const offer = await peerConnection.createOffer();
+      const offer = await peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      
+      console.log('Setting local description');
       await peerConnection.setLocalDescription(offer);
       
+      console.log('Sending offer to:', socketId);
       this.socket.emit('offer', {
         target: socketId,
         offer
@@ -129,12 +174,20 @@ export class WebRTCService {
   // Обработка входящего offer
   private async handleOffer(offer: RTCSessionDescriptionInit, from: string): Promise<void> {
     try {
+      console.log('Handling offer from:', from);
+      await this.ensureLocalStream();
       const peerConnection = await this.createOrGetPeerConnection(from);
+      
+      console.log('Setting remote description');
       await peerConnection.setRemoteDescription(offer);
       
+      console.log('Creating answer');
       const answer = await peerConnection.createAnswer();
+      
+      console.log('Setting local description');
       await peerConnection.setLocalDescription(answer);
       
+      console.log('Sending answer to:', from);
       this.socket.emit('answer', {
         target: from,
         answer
@@ -180,12 +233,21 @@ export class WebRTCService {
 
   // Обработка входящих медиа треков
   private handleTrackEvent(event: RTCTrackEvent, socketId: string): void {
+    console.log('Processing tracks for:', socketId);
+    if (!event.streams || event.streams.length === 0) {
+      console.error('No streams in track event!');
+      return;
+    }
+
     const participants = this.participants.value;
     const participantIndex = participants.findIndex(p => p.socketId === socketId);
     
     if (participantIndex !== -1) {
+      console.log('Updating stream for participant:', participants[participantIndex].username);
       participants[participantIndex].stream = event.streams[0];
       this.participants.next([...participants]);
+    } else {
+      console.error('Participant not found for socketId:', socketId);
     }
   }
 
