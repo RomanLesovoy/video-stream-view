@@ -1,10 +1,11 @@
 import { Inject, Injectable, isDevMode } from '@angular/core';
 import { Socket } from 'socket.io-client';
-import { BehaviorSubject, filter, map } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { LocalStreamService } from './local-stream.service';
 import { optimizeVideoQuality, ConnectionQuality } from './webrtc.helper';
 import { UserService } from './user.service';
 import { AudioActivityService } from './audio-activity.service';
+import { PeerConnectionService } from './peer-connection.service';
 
 export interface Participant {
   socketId: string;
@@ -34,20 +35,13 @@ export class WebRTCService {
   private connectionQuality = new BehaviorSubject<ConnectionQuality[]>([]);
   public connectionQuality$ = this.connectionQuality.asObservable();
   private debugMode = isDevMode();
-  
-  // ICE сервера для установления соединения
-  private configuration: RTCConfiguration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-  };
 
   constructor(
     @Inject('socket') private socket: Socket,
     private userService: UserService,
     private audioActivityService: AudioActivityService,
-    private localStreamService: LocalStreamService
+    private localStreamService: LocalStreamService,
+    private peerConnectionService: PeerConnectionService
   ) {
     this.setupSocketListeners();
 
@@ -76,21 +70,6 @@ export class WebRTCService {
     }
   }
 
-  private monitorConnection(socketId: string): void {
-    const state = this.stateConnections.get(socketId);
-    if (!state) return;
-
-    const connection = state.connection;
-    
-    const checkConnection = () => {
-      if (connection.connectionState === 'failed' || connection.connectionState === 'disconnected') {
-        this.handleConnectionFailure(socketId);
-      }
-    };
-
-    connection.addEventListener('connectionstatechange', checkConnection);
-  }
-
   private async handleConnectionFailure(socketId: string): Promise<void> {
     const state = this.stateConnections.get(socketId);
     if (!state) return;
@@ -109,7 +88,14 @@ export class WebRTCService {
   }
 
   private addParticipant(participant: Participant) {
-    this.participants.next([...this.participants.value, participant]);
+    const newParticipant = {
+      ...participant,
+      isCameraEnabled: true,
+      isMicEnabled: true,
+      isSpeaking: false
+    };
+
+    this.participants.next([...this.participants.value, newParticipant]);
   }
 
   // Инициализация слушателей сокетов
@@ -179,48 +165,30 @@ export class WebRTCService {
 
   // Создание нового RTCPeerConnection
   private async createPeerConnection(socketId: string, username: string): Promise<RTCPeerConnection> {
-    const peerConnection = new RTCPeerConnection(this.configuration);
-    this.monitorConnection(socketId);
-    
-    // Добавляем локальные треки
     await this.localStreamService.ensureLocalStream();
     const localStream = this.localStreamService.getStream();
     
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
-    } else {
+    if (!localStream) {
       throw new Error('No local stream available after ensuring its presence');
     }
 
-    // Обработка ICE кандидатов
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
+    const peerConnection = await this.peerConnectionService.createPeerConnection(
+      socketId,
+      username,
+      localStream,
+      (event) => this.handleTrackEvent(event, socketId),
+      (candidate) => {
         this.socket.emit('ice-candidate', {
           target: socketId,
-          candidate: event.candidate
+          candidate
         });
       }
-    };
+    );
 
-    // Обработка состояния ICE подключения
-    peerConnection.oniceconnectionstatechange = () => {
-      this.debug('ICE connection state for', socketId, ':', peerConnection.iceConnectionState);
-    };
+    this.peerConnectionService.monitorConnection(socketId, () => {
+      this.handleConnectionFailure(socketId);
+    });
 
-    // Обработка состояния подключения
-    peerConnection.onconnectionstatechange = () => {
-      this.debug('Connection state for', socketId, ':', peerConnection.connectionState);
-    };
-
-    // Обработка входящих треков
-    peerConnection.ontrack = (event) => {
-      this.debug('Received tracks from:', socketId, event.streams);
-      this.handleTrackEvent(event, socketId);
-    };
-
-    this.stateConnections.set(socketId, { connection: peerConnection, username, isConnected: true, lastActivity: new Date() });
     return peerConnection;
   }
 
@@ -229,13 +197,7 @@ export class WebRTCService {
     try {
       this.debug('Creating offer for:', socketId);
       const peerConnection = await this.createOrGetPeerConnection(socketId);
-
-      const offer = await peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true
-      });
-
-      await peerConnection.setLocalDescription(offer);
+      const offer = await this.peerConnectionService.createOffer(peerConnection);
       
       this.debug('Sending offer to:', socketId);
       this.socket.emit('offer', {
@@ -248,7 +210,7 @@ export class WebRTCService {
   }
 
   private async createOrGetPeerConnection(socketId: string): Promise<RTCPeerConnection> {
-    let peerConnection = this.stateConnections.get(socketId)?.connection;
+    let peerConnection = this.peerConnectionService.getConnection(socketId);
     if (!peerConnection) {
       peerConnection = await this.createPeerConnection(socketId, this.userService.getUsername());
     }
@@ -278,20 +240,7 @@ export class WebRTCService {
   // Обработка входящего answer
   private async handleAnswer(answer: RTCSessionDescriptionInit, from: string): Promise<void> {
     try {
-      const peerConnection = this.stateConnections.get(from)?.connection;
-
-      if (!peerConnection) {
-        console.error('No peer connection found for:', from);
-        return;
-      }
-
-       // Проверяем состояние соединения
-      if (peerConnection.signalingState === 'stable') {
-        this.debug('Connection already stable, ignoring answer');
-        return;
-      }
-
-      await peerConnection.setRemoteDescription(answer);
+      await this.peerConnectionService.handleAnswer(from, answer);
     } catch (error) {
       console.error('Error handling answer:', error);
     }
@@ -300,10 +249,7 @@ export class WebRTCService {
   // Обработка ICE кандидатов
   private async handleIceCandidate(candidate: RTCIceCandidateInit, from: string): Promise<void> {
     try {
-      const peerConnection = this.stateConnections.get(from)?.connection;
-      if (peerConnection) {
-        await peerConnection.addIceCandidate(candidate);
-      }
+      await this.peerConnectionService.handleIceCandidate(from, candidate);
     } catch (error) {
       console.error('Error handling ICE candidate:', error);
     }
@@ -356,15 +302,7 @@ export class WebRTCService {
   // Обработка выхода пользователя
   private handleUserLeft(socketId: string): void {
     this.audioActivityService.stopAnalyser(socketId);
-
-    // Закрываем соединение
-    const peerConnection = this.stateConnections.get(socketId)?.connection;
-    if (peerConnection) {
-      peerConnection.close();
-      this.stateConnections.delete(socketId);
-    }
-
-    // Удаляем участника из списка
+    this.peerConnectionService.closeConnection(socketId);
     const participants = this.participants.value.filter(p => p.socketId !== socketId);
     this.participants.next(participants);
   }
@@ -376,10 +314,7 @@ export class WebRTCService {
 
   // Очистка всех соединений при выходе из комнаты
   public clearPeerConnections(): void {
-    this.stateConnections.forEach(state => {
-      state.connection.close();
-    });
-    this.stateConnections.clear();
+    this.peerConnectionService.clearAllConnections();
     this.participants.next([]);
   }
 }

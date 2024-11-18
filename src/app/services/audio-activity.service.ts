@@ -4,7 +4,8 @@ import { Injectable } from '@angular/core';
   providedIn: 'root'
 })
 export class AudioActivityService {
-  private readonly SPEAKING_THRESHOLD = -45;
+  private readonly SPEAKING_THRESHOLD = -30;
+  private readonly NOISE_THRESHOLD = 5;
   private audioContextMap = new Map<string, {
     context: AudioContext,
     analyser: AnalyserNode,
@@ -28,11 +29,28 @@ export class AudioActivityService {
     
     source.connect(analyser);
     
+    let speakingFrames = 0;
+    let silentFrames = 0;
+    
     const checkInterval = setInterval(() => {
       analyser.getByteFrequencyData(dataArray);
+      
       const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
       const volume = 20 * Math.log10(average / 255);
-      onSpeakingChange(volume > this.SPEAKING_THRESHOLD);
+
+      if (volume > this.SPEAKING_THRESHOLD) {
+        speakingFrames++;
+        silentFrames = 0;
+      } else if (average < this.NOISE_THRESHOLD) {
+        silentFrames++;
+        speakingFrames = 0;
+      }
+
+      if (speakingFrames > 2) {
+        onSpeakingChange(true);
+      } else if (silentFrames > 5) {
+        onSpeakingChange(false);
+      }
     }, 100);
 
     this.audioContextMap.set(socketId, {
