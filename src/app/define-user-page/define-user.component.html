@@ -1,0 +1,7 @@
+<section class="define-user">
+  <section class="form-holder">
+    <label for="username">Username</label>
+    <input type="text" minlength="3" [(ngModel)]="this.username">
+    <button (click)="setUsername()" [disabled]="this.username.trim().length < 3">Join</button>
+  </section>
+</section>

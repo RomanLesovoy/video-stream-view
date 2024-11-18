@@ -1,13 +1,18 @@
 .room-join {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   align-items: center;
-  padding: 20px;
+  margin-top: 40px;
   
   .join-container {
     display: flex;
     gap: 8px;
+  }
+
+  .or {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0 20px;
   }
 
   button {
@@ -29,7 +34,8 @@
   }
 
   .create-btn {
-    background: #28a745;
+    background: #6b9629;
+    flex: 1;
   }
 
   .join-btn {

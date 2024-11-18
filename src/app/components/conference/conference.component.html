@@ -1,0 +1,26 @@
+<section class="conference-container">
+
+  <app-preview></app-preview>
+
+  <section class="participants">
+    <div *ngFor="let participant of remoteParticipants$ | async; trackBy: trackBySocketId" class="participant-item">
+      <app-video
+        *ngIf="participant.username !== this.username"
+        [stream]="participant.stream"
+        [screenStream]="undefined"
+        [isScreenSharing]="false"
+        [username]="participant.username"
+        [isLoading]="!participant.stream?.active"
+        [muted]="!participant.isMicEnabled"
+        [isSpeaking]="participant.isSpeaking"
+        [quality]="(connectionQuality$(participant) | async)?.quality || 'good'">
+      </app-video>
+    </div>
+  </section>
+  
+  <div *ngIf="!(remoteParticipants$ | async)?.length" class="no-participants">
+    <p>No other participants in the room</p>
+  </div>
+
+  <app-chat></app-chat>
+</section>

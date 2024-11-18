@@ -1,14 +1,19 @@
+
 .controls {
   display: flex;
+  justify-content: center;
   gap: 10px;
+  margin: 10px 0;
   
   button {
     padding: 8px 16px;
     border-radius: 4px;
     border: none;
-    background: #007bff;
+    background: #6b9629;
     color: white;
     cursor: pointer;
+    flex: 1;
+    max-width: 250px;
     
     &.disabled {
       background: #dc3545;

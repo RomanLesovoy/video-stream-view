@@ -21,4 +21,8 @@ export class MediaControlsComponent {
   toggleMicrophone(): void {
     this.localStreamService.toggleMicrophone();
   }
+
+  toggleScreenSharing(): void {
+    // this.localStreamService.toggleScreenSharing();
+  }
 }

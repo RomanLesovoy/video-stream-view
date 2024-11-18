@@ -1,25 +1,4 @@
-.video-preview {
-  width: 320px;
-  height: 240px;
+.preview-container {
   position: relative;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #000;
-  
-  video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  p {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    margin: 0;
-    padding: 4px 8px;
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
-    border-radius: 4px;
-  }
+  max-width: 90vw;
 }

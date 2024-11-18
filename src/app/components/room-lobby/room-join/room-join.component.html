@@ -1,17 +1,18 @@
 <section class="room-join">
   <button class="create-btn" (click)="onCreateRoom()">
-    Создать комнату
+    Create room
   </button>
+  <p class="or">OR</p>
   <div class="join-container">
     <input 
       [(ngModel)]="roomId" 
-      placeholder="ID комнаты"
+      placeholder="Room ID"
       class="room-input">
     <button 
       class="join-btn" 
       [disabled]="!roomId.trim()"
       (click)="onJoinRoom()">
-      Присоединиться
+      Join
     </button>
   </div>
 </section>

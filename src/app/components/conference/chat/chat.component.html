@@ -1,0 +1,31 @@
+<section class="chat-container" *ngIf="chatEnabled$ | async" [class.open]="(chatState$ | async)?.isOpen">
+  <div class="chat-header" (click)="toggleChat()">
+    Chat Room
+    <span *ngIf="(chatState$ | async)?.unreadCount" class="unread-badge">
+      {{ (chatState$ | async)?.unreadCount }}
+    </span>
+  </div>
+  
+  <div class="messages-container">
+    <div *ngFor="let message of (chatState$ | async)?.messages" class="message">
+      <div class="message-header">
+        <span class="username">
+          {{ this.username === message.username ? 'You' : message.username }}
+        </span>
+        <span class="timestamp">{{ message.timestamp | date:'HH:mm' }}</span>
+      </div>
+      <span class="message-text" [class.my-message]="this.username === message.username">
+        {{ message.text }}
+      </span>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <input 
+      #messageInput
+      [(ngModel)]="newMessage"
+      (keyup.enter)="sendMessage()"
+      placeholder="Enter message...">
+    <button (click)="sendMessage()">Send</button>
+  </div>
+</section>

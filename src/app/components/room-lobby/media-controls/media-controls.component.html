@@ -2,11 +2,16 @@
   <button 
     (click)="toggleCamera()" 
     [class.disabled]="!(mediaState$ | async)?.isCameraEnabled">
-    {{ (mediaState$ | async)?.isCameraEnabled ? 'Отключить камеру' : 'Включить камеру' }}
+    {{ (mediaState$ | async)?.isCameraEnabled ? 'Camera on' : 'Camera off' }}
   </button>
   <button 
     (click)="toggleMicrophone()" 
     [class.disabled]="!(mediaState$ | async)?.isMicEnabled">
-    {{ (mediaState$ | async)?.isMicEnabled ? 'Отключить микрофон' : 'Включить микрофон' }}
+    {{ (mediaState$ | async)?.isMicEnabled ? 'Mic on' : 'Mic off' }}
+  </button>
+  <button 
+    (click)="toggleScreenSharing()" 
+    [class.active]="false">
+    {{ false ? 'Stop sharing' : 'Share screen' }}
   </button>
 </section>

@@ -1,31 +1,40 @@
 import { Inject, Injectable } from '@angular/core';
-import { WebRTCService } from './webrtc.service';
+import { WebRTCService, Participant } from './webrtc.service';
 import { Socket } from 'socket.io-client';
-import { Participant } from '../components/participants-grid/participants-grid.component';
-import { LocalStreamService } from './local-stream.service';
+import { BehaviorSubject } from 'rxjs';
+import { UserService } from './user.service';
+
+interface Room {
+  id: string;
+  name: string;
+  chatEnabled: boolean;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class RoomService {
+  private currentRoomSubject = new BehaviorSubject<Room | null>(null);
+  public currentRoom$ = this.currentRoomSubject.asObservable();
+
   constructor(
-    private WebRTCService: WebRTCService,
+    private userService: UserService,
     @Inject('socket') private socket: Socket,
-    private localStreamService: LocalStreamService,
-    @Inject('username') private username: string
   ) {}
+
+  public get currentRoomId(): string | null {
+    return this.currentRoomSubject.value?.id ?? null;
+  }
 
   async createRoom(roomName: string): Promise<string | null> {
     try {
-      await this.localStreamService.initializeStream();
-
       return new Promise((resolve, reject) => {
-        this.socket.emit('create-room', { roomName, username: this.username }, (response: any) => {
-          console.log('create-room response', response);
+        this.socket.emit('create-room', { roomName, username: this.userService.getUsername() }, (response: any) => {
           if (response.error) {
             reject(response.error);
           } else {
-            resolve(response.roomId);
+            this.currentRoomSubject.next(response.room);
+            resolve(response.room.id);
           }
         });
       });
@@ -38,21 +47,13 @@ export class RoomService {
   // todo fix types
   async joinRoom(roomId: string): Promise<boolean | null> {
     try {
-      await this.localStreamService.initializeStream();
-
       return new Promise((resolve, reject) => {
-        this.socket.emit('join-room', { roomId, username: this.username }, (response: any) => {
-          // todo if error - redirect to lobby
-          console.log('join-room response', response);
+        this.socket.emit('join-room', { roomId, username: this.userService.getUsername() }, (response: any) => {
           if (response.error) {
             return reject(response.error);
           }
 
-          const participants = response.participants.map((p: Participant) => ({
-            ...p,
-            stream: undefined
-          }));
-          this.WebRTCService.updateParticipants(participants);
+          this.currentRoomSubject.next(response.room);
           resolve(true);
         });
       });
@@ -64,6 +65,6 @@ export class RoomService {
 
   leaveRoom() {
     this.socket.emit('leave-room');
-    this.WebRTCService.clearPeerConnections();
+    this.currentRoomSubject.next(null);
   }
 }

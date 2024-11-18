@@ -1,7 +1,11 @@
 <section class="preview-container">
   <app-video
     [stream]="stream$ | async"
-    [username]="'You'"
+    [screenStream]="screenStream$ | async"
+    [isScreenSharing]="(isScreenSharing$ | async) ?? false"
+    [username]="this.username"
+    [localStream]="true"
+    [isLoading]="(this.streamIsLoading | async) ?? true"
     [muted]="true">
   </app-video>
   <app-media-controls></app-media-controls>

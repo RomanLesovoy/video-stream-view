@@ -1,9 +1,16 @@
-.participants-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+.conference-container {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
   gap: 20px;
   padding: 20px;
   
+  .participants {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
   .participant-item {
     display: flex;
     justify-content: center;
@@ -13,6 +20,7 @@
     grid-column: 1 / -1;
     text-align: center;
     padding: 40px;
+    width: 100%;
     background: #f8f9fa;
     border-radius: 8px;
     

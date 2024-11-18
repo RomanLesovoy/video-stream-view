@@ -7,18 +7,25 @@ import { RoomComponent } from '../room/room.component';
 import { PreviewComponent } from '../room-lobby/preview/preview.component';
 import { MediaControlsComponent } from '../room-lobby/media-controls/media-controls.component';
 import { RoomJoinComponent } from '../room-lobby/room-join/room-join.component';
-import { ParticipantsGridComponent } from '../participants-grid/participants-grid.component';
+import { ConferenceComponent } from '../conference/conference.component';
 import { RoomLobbyComponent } from '../room-lobby/room-lobby.component';
-import { VideoComponent } from '../participants-grid/video/video.component';
+import { VideoComponent } from '../conference/video/video.component';
+import { ChatComponent } from '../conference/chat/chat.component';
+import { LoaderComponent } from '../loader/loader.component';
 
 const routes: Routes = [
   {
-    path: '',
+    path: 'lobby',
     component: RoomComponent
   },
   {
     path: ':id',
     component: RoomComponent
+  },
+  {
+    path: '',
+    redirectTo: 'lobby',
+    pathMatch: 'full'
   }
 ];
 
@@ -28,14 +35,16 @@ const routes: Routes = [
     PreviewComponent,
     MediaControlsComponent,
     RoomJoinComponent,
-    ParticipantsGridComponent,
+    ConferenceComponent,
     RoomLobbyComponent,
     VideoComponent,
+    ChatComponent
   ],
   imports: [
     CommonModule,
     FormsModule,
-    RouterModule.forChild(routes)
+    RouterModule.forChild(routes),
+    LoaderComponent
   ]
 })
 export class RoomModule { }

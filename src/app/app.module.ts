@@ -6,6 +6,9 @@ import { RouterModule, Routes } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import io from 'socket.io-client';
+import { DefineUserComponent } from './define-user-page/define-user.component';
+import { UserDataGuard } from './guards/user-data.guard';
+import { LoaderComponent } from './components/loader/loader.component';
 
 const routes = [
   {
@@ -14,21 +17,24 @@ const routes = [
     pathMatch: 'full'
   },
   {
+    path: 'user-data',
+    component: DefineUserComponent,
+  },
+  {
     path: 'room',
+    canActivate: [UserDataGuard],
     loadChildren: () => import('./components/room/room.module').then(m => m.RoomModule)
   },
 ];
 
-const username = 'User-' + Math.random().toString(36).substring(2, 6);
 const socket = io('http://localhost:3000', { transports: ['websocket'], autoConnect: true, reconnectionAttempts: 3 });
 
 @NgModule({
-  declarations: [AppComponent],
-  imports: [BrowserModule, FormsModule, RouterModule],
+  declarations: [AppComponent, DefineUserComponent],
+  imports: [BrowserModule, FormsModule, RouterModule, LoaderComponent],
   providers: [
     provideHttpClient(),
     provideRouter(routes as Routes),
-    { provide: 'username', useValue: username },
     { provide: 'socket', useValue: socket },
   ],
   bootstrap: [AppComponent]
