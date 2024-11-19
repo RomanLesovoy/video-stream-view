@@ -122,4 +122,23 @@ export class PeerConnectionService {
 
     connection.addEventListener('connectionstatechange', checkConnection);
   }
-} 
+
+  getAllConnections(): Map<string, RTCPeerConnection> {
+    const connections = new Map<string, RTCPeerConnection>();
+    this.stateConnections.forEach((state, socketId) => {
+      connections.set(socketId, state.connection);
+    });
+    return connections;
+  }
+
+  async replaceTrack(
+    peerConnection: RTCPeerConnection,
+    oldTrack: MediaStreamTrack,
+    newTrack: MediaStreamTrack
+  ): Promise<void> {
+    const sender = peerConnection.getSenders().find(s => s.track === oldTrack);
+    if (sender) {
+      await sender.replaceTrack(newTrack);
+    }
+  }
+}

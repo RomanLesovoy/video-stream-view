@@ -22,7 +22,11 @@ export class MediaControlsComponent {
     this.localStreamService.toggleMicrophone();
   }
 
-  toggleScreenSharing(): void {
-    // this.localStreamService.toggleScreenSharing();
+  async toggleScreenSharing(): Promise<void> {
+    try {
+      await this.localStreamService.toggleScreenSharing();
+    } catch (error) {
+      console.error('Failed to toggle screen sharing:', error);
+    }
   }
 }

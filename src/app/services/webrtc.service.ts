@@ -11,6 +11,8 @@ export interface Participant {
   socketId: string;
   username: string;
   stream?: MediaStream;
+  screenStream?: MediaStream;
+  isScreenSharing: boolean;
   isCameraEnabled: boolean;
   isMicEnabled: boolean;
   isSpeaking: boolean;
@@ -44,6 +46,8 @@ export class WebRTCService {
     private peerConnectionService: PeerConnectionService
   ) {
     this.setupSocketListeners();
+    this.setupStreamListeners();
+    this.setupHeartbeat();
 
     window.addEventListener('beforeunload', () => {
       this.socket.emit('leave-room');
@@ -51,6 +55,44 @@ export class WebRTCService {
     });
 
     this.startOptimization();
+  }
+
+  private setupHeartbeat(): void {
+    this.socket.on('ping', () => {
+      this.socket.emit('pong');
+    });
+  }
+
+  private setupStreamListeners(): void {
+    // Подписываемся на изменения состояния медиа
+    this.localStreamService.mediaState$.subscribe(async (state) => {
+      if (state.isScreenSharing && state.screenStream) {
+        // Добавляем screen sharing поток ко всем существующим peer connections
+        await this.addScreenShareToPeers(state.screenStream);
+      }
+    });
+  }
+
+  private async addScreenShareToPeers(screenStream: MediaStream): Promise<void> {
+    const peers = Array.from(this.peerConnectionService.getAllConnections());
+    
+    for (const [socketId, peerConnection] of peers) {
+      // Добавляем треки screen sharing
+      screenStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, screenStream);
+      });
+      
+      // Создаем и отправляем новый offer
+      try {
+        const offer = await this.peerConnectionService.createOffer(peerConnection);
+        this.socket.emit('offer', {
+          target: socketId,
+          offer
+        });
+      } catch (error) {
+        console.error('Error creating offer for screen share:', error);
+      }
+    }
   }
 
   private startOptimization(): void {
@@ -102,7 +144,7 @@ export class WebRTCService {
   private setupSocketListeners(): void {
     // Когда новый пользователь присоединяется
     this.socket.on('user-joined', async ({ socketId, username }) => {
-      this.addParticipant({ socketId, username, isCameraEnabled: false, isMicEnabled: false, isSpeaking: false });
+      this.addParticipant({ socketId, username, isCameraEnabled: false, isMicEnabled: false, isSpeaking: false, isScreenSharing: false });
     });
 
     this.socket.on('set-participants', async ({ participants }) => {
@@ -110,7 +152,8 @@ export class WebRTCService {
         ...p,
         stream: undefined,
         isCameraEnabled: p.isCameraEnabled ?? false,
-        isMicEnabled: p.isMicEnabled ?? false
+        isMicEnabled: p.isMicEnabled ?? false,
+        isScreenSharing: p.isScreenSharing ?? false
       })));
     });
 
@@ -271,28 +314,34 @@ export class WebRTCService {
 
   // Обработка входящих медиа треков
   private handleTrackEvent(event: RTCTrackEvent, socketId: string): void {
-    if (!event.streams || event.streams.length === 0) {
-      console.error('No streams in track event!');
-      return;
-    }
+    if (!event.streams || event.streams.length === 0) return;
 
+    const stream = event.streams[0];
+    const track = event.track;
     const participants = [...this.participants.value];
     const participantIndex = this.findParticipantIndex(socketId);
-    
-    if (participantIndex !== -1) {
-      const stream = event.streams[0];
+
+    if (participantIndex === -1) return;
+
+    const participant = participants[participantIndex];
+
+    // Определяем тип трека (screen sharing или обычный)
+    if (track.kind === 'video' && track.label.includes('screen')) {
       participants[participantIndex] = {
-        ...participants[participantIndex],
-        stream,
-        isSpeaking: false,
+        ...participant,
+        screenStream: stream,
+        isScreenSharing: true
       };
-
-      this.handleSpeaking(stream, socketId);
-
-      this.participants.next(participants);
     } else {
-      console.error('Participant not found for socketId:', socketId);
+      participants[participantIndex] = {
+        ...participant,
+        stream: stream,
+        isSpeaking: false
+      };
+      this.handleSpeaking(stream, socketId);
     }
+
+    this.participants.next(participants);
   }
 
   private findParticipantIndex(socketId: string): number {

@@ -22,8 +22,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
     const mediaState$ = this.localStreamService.mediaState$;
     
     this.stream$ = mediaState$.pipe(map(state => state.stream));
-    this.screenStream$ = of(undefined); // mediaState$.pipe(map(state => state.screenStream));
-    this.isScreenSharing$ = of(false); // mediaState$.pipe(map(state => state.isScreenSharing));
+    this.screenStream$ = mediaState$.pipe(map(state => state.screenStream));
+    this.isScreenSharing$ = mediaState$.pipe(map(state => state.isScreenSharing));
     
     this.streamIsLoading = this.localStreamService.isLoading$;
     this.username = this.userService.getUsername();

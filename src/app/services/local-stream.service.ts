@@ -6,7 +6,9 @@ import { Socket } from 'socket.io-client';
 export interface MediaState {
   isCameraEnabled: boolean;
   isMicEnabled: boolean;
+  isScreenSharing: boolean;
   stream?: MediaStream;
+  screenStream?: MediaStream;
 }
 
 @Injectable({
@@ -19,6 +21,7 @@ export class LocalStreamService implements OnDestroy {
   public mediaState = new BehaviorSubject<MediaState>({
     isCameraEnabled: true,
     isMicEnabled: true,
+    isScreenSharing: false
   });
 
   constructor(
@@ -112,6 +115,7 @@ export class LocalStreamService implements OnDestroy {
     this.mediaState.next({
       isCameraEnabled: true,
       isMicEnabled: true,
+      isScreenSharing: false
     });
   }
 
@@ -121,5 +125,53 @@ export class LocalStreamService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopStream();
+  }
+
+  async toggleScreenSharing(): Promise<void> {
+    const currentState = this.mediaState.value;
+    
+    try {
+      if (currentState.isScreenSharing) {
+        await this.stopScreenSharing();
+      } else {
+        await this.startScreenSharing();
+      }
+    } catch (error) {
+      console.error('[ScreenShare] Error:', error);
+      throw error;
+    }
+  }
+
+  private async startScreenSharing(): Promise<void> {
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: false
+    });
+
+    // Подписываемся на событие остановки шаринга через системный интерфейс
+    screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+      this.stopScreenSharing();
+    });
+
+    this.mediaState.next({
+      ...this.mediaState.value,
+      screenStream,
+      isScreenSharing: true,
+      isCameraEnabled: false
+    });
+  }
+
+  private async stopScreenSharing(): Promise<void> {
+    const currentState = this.mediaState.value;
+    
+    // Останавливаем треки screen sharing
+    currentState.screenStream?.getTracks().forEach(track => track.stop());
+
+    this.mediaState.next({
+      ...currentState,
+      screenStream: undefined,
+      isScreenSharing: false,
+      isCameraEnabled: true
+    });
   }
 }

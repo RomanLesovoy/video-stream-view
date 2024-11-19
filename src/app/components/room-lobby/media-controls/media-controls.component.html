@@ -11,7 +11,7 @@
   </button>
   <button 
     (click)="toggleScreenSharing()" 
-    [class.active]="false">
-    {{ false ? 'Stop sharing' : 'Share screen' }}
+    [class.active]="(mediaState$ | async)?.isScreenSharing">
+    {{ (mediaState$ | async)?.isScreenSharing ? 'Stop sharing' : 'Share screen' }}
   </button>
 </section>
