@@ -1,6 +1,5 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { WebRTCService, Participant } from '../../services/webrtc.service';
-import { LocalStreamService } from '../../services/local-stream.service';
 import { Observable } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RoomService } from '../../services/room.service';
@@ -10,7 +9,7 @@ import { RoomService } from '../../services/room.service';
   templateUrl: './room.component.html',
   styleUrls: ['./room.component.scss']
 })
-export class RoomComponent implements OnInit, OnDestroy {
+export class RoomComponent implements OnInit {
   isInRoom = false;
   participants$!: Observable<Participant[]>;
 
@@ -18,7 +17,6 @@ export class RoomComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private WebRTCService: WebRTCService,
-    private localStreamService: LocalStreamService,
     private roomService: RoomService,
   ) {
     this.participants$ = this.WebRTCService.participants$;
@@ -43,10 +41,5 @@ export class RoomComponent implements OnInit, OnDestroy {
       console.error(e);
       this.router.navigate(['/']);
     }
-  }
-
-  ngOnDestroy() {
-    this.roomService.leaveRoom();
-    this.localStreamService.stopStream();
   }
 }
