@@ -1,8 +1,8 @@
 <section class="video-container" [class.speaking]="isSpeaking && !localStream" [class.localStream]="this.localStream">
-  <video #videoElement autoplay playsinline [muted]="muted"></video>
+  <video #videoElement autoplay playsinline [muted]="isMuted"></video>
   <p *ngIf="username" class="username-label">{{ this.localStream ? 'You' : username }}</p>
   <p *ngIf="quality" [class]="'quality-label ' + quality">Quality:{{ quality }}</p>
-  <p *ngIf="muted && !localStream" class="muted-label">muted</p>
+  <p *ngIf="isMuted && !localStream" class="muted-label">muted</p>
 
   <div class="speaking-indicator" *ngIf="isSpeaking && !localStream">
     <span class="material-icons">volume_up</span>

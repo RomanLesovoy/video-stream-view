@@ -28,7 +28,6 @@ export class VideoComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     if ((changes['stream']) && this.videoElement) {
-      console.log(this.stream, 'this.stream')
       this.updateVideoStream();
     }
   }
@@ -37,8 +36,8 @@ export class VideoComponent implements OnChanges {
     return this.stream?.getVideoTracks()[0];
   }
 
-  public getIsMuted() {
-    return this.muted && this.getVideoTrack()?.muted;
+  public get isMuted() {
+    return this.muted || this.getVideoTrack()?.muted;
   }
 
   private updateVideoStream() {

@@ -1,6 +1,6 @@
 import { Inject, Injectable, isDevMode } from '@angular/core';
 import { Socket } from 'socket.io-client';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { LocalStreamService } from './local-stream.service';
 import { optimizeVideoQuality, ConnectionQuality } from './webrtc.helper';
 import { UserService } from './user.service';
@@ -80,7 +80,6 @@ export class WebRTCService {
             const newTrack = state.stream.getVideoTracks()[0];
             if (newTrack) {
               await videoSender.replaceTrack(newTrack);
-              console.log('[WebRTC] Track replaced for peer:', socketId);
             }
           }
         } catch (error) {
@@ -124,38 +123,28 @@ export class WebRTCService {
     await this.createPeerConnection(socketId, this.userService.getUsername());
   }
 
-  private addParticipant(participant: Participant) {
-    const newParticipant = {
-      ...participant,
-      isCameraEnabled: true,
-      isMicEnabled: true,
-      isSpeaking: false
-    };
-
-    this.participants.next([...this.participants.value, newParticipant]);
-  }
-
   // Инициализация слушателей сокетов
   private setupSocketListeners(): void {
     // Когда новый пользователь присоединяется
     this.socket.on('user-joined', async ({ socketId, username }) => {
-      this.addParticipant({
+      const newParticipant = {
         socketId,
         username,
-        isCameraEnabled: false,
-        isMicEnabled: false,
+        isCameraEnabled: true,
+        isMicEnabled: true,
         isSpeaking: false,
         isScreenSharing: false
-      });
+      };
+  
+      this.participants.next([...this.participants.value, newParticipant]);
     });
 
     this.socket.on('set-participants', async ({ participants }) => {
       this.updateParticipants(participants.map((p: Participant) => ({
         ...p,
+        isCameraEnabled: p.isCameraEnabled ?? true,
+        isMicEnabled: p.isMicEnabled ?? true,
         stream: undefined,
-        // isCameraEnabled: p.isCameraEnabled ?? false,
-        // isMicEnabled: p.isMicEnabled ?? false,
-        // isScreenSharing: p.isScreenSharing ?? false
       })));
     });
 
@@ -166,10 +155,11 @@ export class WebRTCService {
       
       if (participantIndex !== -1) {
         const participant = participants[participantIndex];
+        const stream = participant.stream;
 
-        const stream = participant.stream && (rest.isScreenSharing || rest.isCameraEnabled || rest.isMicEnabled)
-          ? new MediaStream(participant.stream.getTracks())
-          : undefined
+        // const stream = participant.stream && (rest.isScreenSharing || rest.isCameraEnabled || rest.isMicEnabled)
+        //   ? new MediaStream(participant.stream.getTracks())
+        //   : undefined
 
         participants[participantIndex] = {
           ...participant,

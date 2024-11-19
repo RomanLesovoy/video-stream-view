@@ -10,7 +10,9 @@ import { Observable } from 'rxjs';
 export class MediaControlsComponent {
   mediaState$: Observable<MediaState>;
 
-  constructor(private localStreamService: LocalStreamService) {
+  constructor(
+    private localStreamService: LocalStreamService,
+  ) {
     this.mediaState$ = this.localStreamService.mediaState$;
   }
 

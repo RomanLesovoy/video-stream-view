@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { MediaState } from './local-stream.service';
 
 export interface PeerState {
   connection: RTCPeerConnection;
@@ -130,15 +131,4 @@ export class PeerConnectionService {
     });
     return connections;
   }
-
-  // async replaceTrack(
-  //   peerConnection: RTCPeerConnection,
-  //   oldTrack: MediaStreamTrack,
-  //   newTrack: MediaStreamTrack
-  // ): Promise<void> {
-  //   const sender = peerConnection.getSenders().find(s => s.track === oldTrack);
-  //   if (sender) {
-  //     await sender.replaceTrack(newTrack);
-  //   }
-  // }
 }

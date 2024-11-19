@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, debounceTime, Observable } from 'rxjs';
 import { RoomService } from './room.service';
 import { Socket } from 'socket.io-client';
 
@@ -47,18 +47,22 @@ export class LocalStreamService implements OnDestroy {
 
       if (!this.getStream()) {
         await this.startCameraStream();
-      };
-
-      const attempts = 4;
-
-      for (let i = 0; i < attempts; i++) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        if (this.getStream()) {
-          return;
+        if (!this.getStream()) {
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
+        
+        // Применяем сохраненное состояние после получения стрима
+        // const currentState = this.mediaState.value;
+        // if (!currentState.isCameraEnabled) {
+        //   await this.stopVideoTracks();
+        // }
+        // if (!currentState.isMicEnabled) {
+        //   const audioTrack = currentState.stream?.getAudioTracks()[0];
+        //   if (audioTrack) {
+        //     audioTrack.enabled = false;
+        //   }
+        // }
       }
-      
-      throw new Error('Failed to get local stream after waiting');
     } catch (error) {
       console.error('[LocalStream] Error:', error);
       throw error;
@@ -69,15 +73,12 @@ export class LocalStreamService implements OnDestroy {
 
   // Инициализация начального медиа стрима
   async startCameraStream(): Promise<void> {
-    this.setLoading(true);
     try {
       const stream = await this.getUserMedia();
       this.updateMediaState({ stream });
     } catch (error) {
       console.error('[Media] Error accessing devices:', error);
       throw error;
-    } finally {
-      this.setLoading(false);
     }
   }
 
@@ -89,7 +90,12 @@ export class LocalStreamService implements OnDestroy {
     if (audioTrack) {
       const newMicState = !currentState.isMicEnabled;
       audioTrack.enabled = newMicState;
-      this.updateMediaState({ isMicEnabled: newMicState });
+    
+      // Обновляем стрим для триггера изменений
+      this.updateMediaState({ 
+        isMicEnabled: newMicState,
+        stream: new MediaStream([...currentState.stream!.getTracks()])
+      });
     }
   }
 
@@ -99,6 +105,7 @@ export class LocalStreamService implements OnDestroy {
     
     if (currentState.isCameraEnabled) {
       await this.stopVideoTracks();
+
       this.updateMediaState({ isCameraEnabled: false });
     } else {
       const videoTrack = await this.getVideoTrack();
@@ -113,9 +120,9 @@ export class LocalStreamService implements OnDestroy {
     
     try {
       if (currentState.isScreenSharing) {
-        this._launchScreen();
-      } else {
         this._launchCamera();
+      } else {
+        this._launchScreen();
       }
     } catch (error) {
       console.error('[ScreenShare] Error:', error);
@@ -123,12 +130,12 @@ export class LocalStreamService implements OnDestroy {
     }
   }
 
-  private async _launchScreen() {
+  private async _launchCamera() {
     const currentState = this.mediaState.value;
     await this.stopVideoTracks();
     const videoTrack = await this.getVideoTrack();
     currentState.stream?.addTrack(videoTrack);
-    
+
     this.updateMediaState({
       stream: currentState.stream,
       isScreenSharing: false,
@@ -136,7 +143,7 @@ export class LocalStreamService implements OnDestroy {
     });
   }
 
-  private async _launchCamera() {
+  private async _launchScreen() {
     const currentState = this.mediaState.value;
     await this.stopVideoTracks();
     const screenTrack = await this.getScreenTrack();
@@ -191,11 +198,12 @@ export class LocalStreamService implements OnDestroy {
   public stopStream(): void {
     const currentState = this.mediaState.value;
     currentState.stream?.getTracks().forEach(track => track.stop());
+
     this.updateMediaState({
       stream: undefined,
-      isCameraEnabled: true,
-      isMicEnabled: true,
-      isScreenSharing: false
+      // isCameraEnabled: true,
+      // isMicEnabled: true,
+      // isScreenSharing: false
     });
   }
 

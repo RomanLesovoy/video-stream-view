@@ -6,5 +6,5 @@
     [isLoading]="(this.streamIsLoading | async) ?? true"
     [muted]="true">
   </app-video>
-  <app-media-controls></app-media-controls>
+  <app-media-controls *ngIf="roomId"></app-media-controls>
 </section>
