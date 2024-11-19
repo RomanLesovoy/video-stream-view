@@ -17,7 +17,7 @@ export class LocalStreamService implements OnDestroy {
   private isLoading = new BehaviorSubject<boolean>(false);
   public isLoading$ = this.isLoading.asObservable();
 
-  public mediaState = new BehaviorSubject<MediaState>({
+  private mediaState = new BehaviorSubject<MediaState>({
     isCameraEnabled: true,
     isMicEnabled: true,
     isScreenSharing: false
@@ -27,13 +27,9 @@ export class LocalStreamService implements OnDestroy {
     @Inject('socket') private socket: Socket,
     private roomService: RoomService
   ) {
+    // Отправляем состояние стрима другим участникам
     this.mediaState$.subscribe(state => {
-      this.socket.emit('stream-state-changed', {
-        isCameraEnabled: state.isCameraEnabled,
-        isMicEnabled: state.isMicEnabled,
-        isScreenSharing: state.isScreenSharing,
-        roomId: this.roomService.currentRoomId
-      });
+      this.emitStreamState(state);
     });
   }
 
@@ -41,39 +37,51 @@ export class LocalStreamService implements OnDestroy {
     return this.mediaState.asObservable();
   }
 
-  async startCameraStream(): Promise<void> {
-    this.isLoading.next(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
+  getStream(): MediaStream | undefined {
+    return this.mediaState.value.stream;
+  }
 
-      this.mediaState.next({
-        ...this.mediaState.value,
-        stream
-      });
+  async ensureLocalStream(): Promise<void> {
+    try {
+      this.setLoading(true);
+
+      if (!this.getStream()) {
+        await this.startCameraStream();
+      };
+
+      const attempts = 4;
+
+      for (let i = 0; i < attempts; i++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (this.getStream()) {
+          return;
+        }
+      }
+      
+      throw new Error('Failed to get local stream after waiting');
     } catch (error) {
-      console.error('Error accessing media devices:', error);
+      console.error('[LocalStream] Error:', error);
       throw error;
     } finally {
-      this.isLoading.next(false);
+      this.setLoading(false);
     }
   }
 
-  toggleCamera(): void {
-    const currentState = this.mediaState.value;
-    const videoTrack = currentState.stream?.getVideoTracks()[0];
-
-    if (videoTrack) {
-
-      this.mediaState.next({
-        ...currentState,
-        isCameraEnabled: !currentState.isCameraEnabled
-      });
+  // Инициализация начального медиа стрима
+  async startCameraStream(): Promise<void> {
+    this.setLoading(true);
+    try {
+      const stream = await this.getUserMedia();
+      this.updateMediaState({ stream });
+    } catch (error) {
+      console.error('[Media] Error accessing devices:', error);
+      throw error;
+    } finally {
+      this.setLoading(false);
     }
   }
 
+  // Переключение микрофона
   toggleMicrophone(): void {
     const currentState = this.mediaState.value;
     const audioTrack = currentState.stream?.getAudioTracks()[0];
@@ -81,95 +89,133 @@ export class LocalStreamService implements OnDestroy {
     if (audioTrack) {
       const newMicState = !currentState.isMicEnabled;
       audioTrack.enabled = newMicState;
-
-      this.mediaState.next({
-        ...currentState,
-        isMicEnabled: newMicState
-      });
+      this.updateMediaState({ isMicEnabled: newMicState });
     }
   }
 
-  public async ensureLocalStream(): Promise<void> {
-    let attempts = 0;
-    const maxAttempts = 5;
-    this.isLoading.next(true);
-    
-    while (!this.getStream() && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      attempts++;
-    }
-
-    this.isLoading.next(false);
-    if (!this.getStream()) {
-      console.error('Failed to get local stream after waiting');
-      throw new Error('No local stream available');
-    }
-  }
-
-  stopStream(): void {
+  // Переключение камеры
+  async toggleCamera(): Promise<void> {
     const currentState = this.mediaState.value;
-    currentState.stream?.getTracks().forEach(track => track.stop());
     
-    this.mediaState.next({
-      isCameraEnabled: true,
-      isMicEnabled: true,
-      isScreenSharing: false
+    if (currentState.isCameraEnabled) {
+      await this.stopVideoTracks();
+      this.updateMediaState({ isCameraEnabled: false });
+    } else {
+      const videoTrack = await this.getVideoTrack();
+      currentState.stream?.addTrack(videoTrack);
+      this.updateMediaState({ isCameraEnabled: true });
+    }
+  }
+
+  // Переключение screen sharing
+  async toggleScreenSharing(): Promise<void> {
+    const currentState = this.mediaState.value;
+    
+    try {
+      if (currentState.isScreenSharing) {
+        this._launchScreen();
+      } else {
+        this._launchCamera();
+      }
+    } catch (error) {
+      console.error('[ScreenShare] Error:', error);
+      throw error;
+    }
+  }
+
+  private async _launchScreen() {
+    const currentState = this.mediaState.value;
+    await this.stopVideoTracks();
+    const videoTrack = await this.getVideoTrack();
+    currentState.stream?.addTrack(videoTrack);
+    
+    this.updateMediaState({
+      stream: currentState.stream,
+      isScreenSharing: false,
+      isCameraEnabled: true
     });
   }
 
-  getStream(): MediaStream | undefined {
-    return this.mediaState.value.stream;
+  private async _launchCamera() {
+    const currentState = this.mediaState.value;
+    await this.stopVideoTracks();
+    const screenTrack = await this.getScreenTrack();
+    currentState.stream?.addTrack(screenTrack);
+    
+    this.updateMediaState({
+      stream: currentState.stream,
+      isScreenSharing: true,
+      isCameraEnabled: false
+    });
   }
 
   ngOnDestroy(): void {
     this.stopStream();
   }
 
-  async toggleScreenSharing(): Promise<void> {
-    const currentState = this.mediaState.value;
+  // Private helper methods
+  private async getUserMedia(): Promise<MediaStream> {
+    return navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    });
+  }
+
+  private async getVideoTrack(): Promise<MediaStreamTrack> {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    return stream.getVideoTracks()[0];
+  }
+
+  private async getScreenTrack(): Promise<MediaStreamTrack> {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ 
+      video: true,
+      audio: false 
+    });
     
-    try {
-      if (currentState.isScreenSharing) {
-        // Останавливаем текущий стрим
-        currentState.stream?.getTracks().forEach(track => track.stop());
-        
-        // Запускаем камеру
-        const cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
+    // Обработка системного события остановки screen sharing
+    stream.getVideoTracks()[0].addEventListener('ended', () => {
+      this.toggleScreenSharing();
+    });
+    
+    return stream.getVideoTracks()[0];
+  }
 
-        this.mediaState.next({
-          ...currentState,
-          stream: cameraStream,
-          isScreenSharing: false,
-          isCameraEnabled: true
-        });
-      } else {
-        // Останавливаем камеру
-        currentState.stream?.getTracks().forEach(track => track.stop());
-        
-        // Запускаем screen sharing
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: false
-        });
+  private async stopVideoTracks(): Promise<void> {
+    const currentState = this.mediaState.value;
+    currentState.stream?.getVideoTracks().forEach(track => {
+      track.stop();
+      currentState.stream?.removeTrack(track);
+    });
+  }
 
-        // Подписываемся на событие остановки шаринга через системный интерфейс
-        screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-          this.toggleScreenSharing();
-        });
+  public stopStream(): void {
+    const currentState = this.mediaState.value;
+    currentState.stream?.getTracks().forEach(track => track.stop());
+    this.updateMediaState({
+      stream: undefined,
+      isCameraEnabled: true,
+      isMicEnabled: true,
+      isScreenSharing: false
+    });
+  }
 
-        this.mediaState.next({
-          ...currentState,
-          stream: screenStream,
-          isScreenSharing: true,
-          isCameraEnabled: false
-        });
-      }
-    } catch (error) {
-      console.error('[ScreenShare] Error:', error);
-      throw error;
-    }
+  private setLoading(loading: boolean): void {
+    this.isLoading.next(loading);
+  }
+
+  private updateMediaState(update: Partial<MediaState>): void {
+    this.mediaState.next({
+      ...this.mediaState.value,
+      ...update
+    });
+  }
+
+  private emitStreamState(state: MediaState): void {
+    this.socket.emit('stream-state-changed', {
+      isCameraEnabled: state.isCameraEnabled,
+      isMicEnabled: state.isMicEnabled,
+      isScreenSharing: state.isScreenSharing,
+      roomId: this.roomService.currentRoomId
+    });
   }
 }

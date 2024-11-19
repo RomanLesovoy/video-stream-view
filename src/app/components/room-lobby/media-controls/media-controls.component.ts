@@ -23,10 +23,6 @@ export class MediaControlsComponent {
   }
 
   async toggleScreenSharing(): Promise<void> {
-    try {
-      await this.localStreamService.toggleScreenSharing();
-    } catch (error) {
-      console.error('Failed to toggle screen sharing:', error);
-    }
+    this.localStreamService.toggleScreenSharing();
   }
 }
