@@ -127,6 +127,7 @@ export class WebRTCService {
   private setupSocketListeners(): void {
     // Когда новый пользователь присоединяется
     this.socket.on('user-joined', async ({ socketId, username }) => {
+      const participantIndex = this.findParticipantIndex(socketId);
       const newParticipant = {
         socketId,
         username,
@@ -135,8 +136,14 @@ export class WebRTCService {
         isSpeaking: false,
         isScreenSharing: false
       };
-  
-      this.participants.next([...this.participants.value, newParticipant]);
+
+      if (participantIndex !== -1) {
+        this.participants.value[participantIndex] = newParticipant;
+        this.participants.next(this.participants.value);
+      } else {
+        this.participants.next([...this.participants.value, newParticipant]);
+      }
+      
     });
 
     this.socket.on('set-participants', async ({ participants }) => {

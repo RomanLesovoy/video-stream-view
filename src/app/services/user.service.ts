@@ -5,7 +5,7 @@ import { BehaviorSubject, Observable } from "rxjs";
   providedIn: 'root'
 })
 export class UserService {
-  private username = new BehaviorSubject<string>(Math.random().toString(36).substring(2, 15)); // todo: change to empty
+  private username = new BehaviorSubject<string>('');
   public username$: Observable<string> = this.username.asObservable();
 
   constructor() {}

@@ -5,6 +5,11 @@ section.define-user {
   justify-content: center;
 }
 
+.join-button:not([disabled]) {
+  color: white;
+  background: #5a5aae;
+}
+
 section.form-holder {
   display: flex;
   flex-direction: column;

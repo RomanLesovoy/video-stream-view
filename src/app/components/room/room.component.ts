@@ -3,6 +3,7 @@ import { WebRTCService, Participant } from '../../services/webrtc.service';
 import { Observable } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RoomService } from '../../services/room.service';
+import { LocalStreamService } from '../../services/local-stream.service';
 
 @Component({
   selector: 'app-room',
@@ -18,6 +19,7 @@ export class RoomComponent implements OnInit {
     private router: Router,
     private WebRTCService: WebRTCService,
     private roomService: RoomService,
+    private localStreamService: LocalStreamService
   ) {
     this.participants$ = this.WebRTCService.participants$;
   }
@@ -31,6 +33,7 @@ export class RoomComponent implements OnInit {
 
   private async goToRoom(roomId: string) {
     try {
+      await this.localStreamService.ensureLocalStream();
       const success = await this.roomService.joinRoom(roomId);
       if (success) {
         this.isInRoom = true;

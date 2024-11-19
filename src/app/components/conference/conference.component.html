@@ -8,7 +8,7 @@
         *ngIf="participant.username !== this.username"
         [stream]="participant.stream"
         [username]="participant.username"
-        [isLoading]="!participant.stream?.active"
+        [isLoading]="!participant.stream"
         [muted]="!participant.isMicEnabled"
         [isSpeaking]="participant.isSpeaking"
         [quality]="(connectionQuality$(participant) | async)?.quality || 'good'">
@@ -21,4 +21,6 @@
   </div>
 
   <app-chat></app-chat>
+
+  <button class="leave-room-button" (click)="leaveRoom()">Leave room</button>
 </section>

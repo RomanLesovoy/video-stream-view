@@ -15,6 +15,14 @@
     display: flex;
     justify-content: center;
   }
+
+  .leave-room-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: #d16565;
+    color: white;
+  }
   
   .no-participants {
     grid-column: 1 / -1;
