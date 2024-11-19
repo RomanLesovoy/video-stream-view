@@ -8,7 +8,6 @@ export interface MediaState {
   isMicEnabled: boolean;
   isScreenSharing: boolean;
   stream?: MediaStream;
-  screenStream?: MediaStream;
 }
 
 @Injectable({
@@ -131,46 +130,46 @@ export class LocalStreamService implements OnDestroy {
     
     try {
       if (currentState.isScreenSharing) {
-        await this.stopScreenSharing();
+        // Останавливаем текущий стрим
+        currentState.stream?.getTracks().forEach(track => track.stop());
+        
+        // Запускаем камеру
+        const cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+
+        this.mediaState.next({
+          ...currentState,
+          stream: cameraStream,
+          isScreenSharing: false,
+          isCameraEnabled: true
+        });
       } else {
-        await this.startScreenSharing();
+        // Останавливаем камеру
+        currentState.stream?.getTracks().forEach(track => track.stop());
+        
+        // Запускаем screen sharing
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: false
+        });
+
+        // Подписываемся на событие остановки шаринга через системный интерфейс
+        screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+          this.toggleScreenSharing();
+        });
+
+        this.mediaState.next({
+          ...currentState,
+          stream: screenStream,
+          isScreenSharing: true,
+          isCameraEnabled: false
+        });
       }
     } catch (error) {
       console.error('[ScreenShare] Error:', error);
       throw error;
     }
-  }
-
-  private async startScreenSharing(): Promise<void> {
-    const screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: false
-    });
-
-    // Подписываемся на событие остановки шаринга через системный интерфейс
-    screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-      this.stopScreenSharing();
-    });
-
-    this.mediaState.next({
-      ...this.mediaState.value,
-      screenStream,
-      isScreenSharing: true,
-      isCameraEnabled: false
-    });
-  }
-
-  private async stopScreenSharing(): Promise<void> {
-    const currentState = this.mediaState.value;
-    
-    // Останавливаем треки screen sharing
-    currentState.screenStream?.getTracks().forEach(track => track.stop());
-
-    this.mediaState.next({
-      ...currentState,
-      screenStream: undefined,
-      isScreenSharing: false,
-      isCameraEnabled: true
-    });
   }
 }

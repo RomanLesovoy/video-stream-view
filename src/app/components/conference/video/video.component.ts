@@ -28,7 +28,7 @@ export class VideoComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     if ((changes['stream']) && this.videoElement) {
-      console.log('loool')
+      console.log(this.stream, 'this.stream')
       this.updateVideoStream();
     }
   }

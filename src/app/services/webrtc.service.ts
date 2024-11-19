@@ -65,35 +65,29 @@ export class WebRTCService {
   }
 
   private setupStreamListeners(): void {
-    // Подписываемся на изменения состояния медиа
     this.localStreamService.mediaState$.subscribe(async (state) => {
+      if (!this.roomService.currentRoomId) return;
 
-      if (state.isScreenSharing && state.screenStream) {
-        await this.addScreenShareToPeers(state.screenStream);
+      const peers = Array.from(this.peerConnectionService.getAllConnections());
+      
+      // Для всех пиров заменяем видеотрек
+      for (const [socketId, peerConnection] of peers) {
+        try {
+          const senders = peerConnection.getSenders();
+          const videoSender = senders.find(s => s.track?.kind === 'video');
+          
+          if (videoSender && state.stream) {
+            const newTrack = state.stream.getVideoTracks()[0];
+            if (newTrack) {
+              await videoSender.replaceTrack(newTrack);
+              console.log('[WebRTC] Track replaced for peer:', socketId);
+            }
+          }
+        } catch (error) {
+          console.error('[WebRTC] Error replacing track:', error);
+        }
       }
     });
-  }
-
-  private async addScreenShareToPeers(screenStream: MediaStream): Promise<void> {
-    const peers = Array.from(this.peerConnectionService.getAllConnections());
-    
-    for (const [socketId, peerConnection] of peers) {
-      // Добавляем треки screen sharing
-      screenStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, screenStream);
-      });
-      
-      // Создаем и отправляем новый offer
-      try {
-        const offer = await this.peerConnectionService.createOffer(peerConnection);
-        this.socket.emit('offer', {
-          target: socketId,
-          offer
-        });
-      } catch (error) {
-        console.error('Error creating offer for screen share:', error);
-      }
-    }
   }
 
   private startOptimization(): void {
@@ -145,16 +139,23 @@ export class WebRTCService {
   private setupSocketListeners(): void {
     // Когда новый пользователь присоединяется
     this.socket.on('user-joined', async ({ socketId, username }) => {
-      this.addParticipant({ socketId, username, isCameraEnabled: false, isMicEnabled: false, isSpeaking: false, isScreenSharing: false });
+      this.addParticipant({
+        socketId,
+        username,
+        isCameraEnabled: false,
+        isMicEnabled: false,
+        isSpeaking: false,
+        isScreenSharing: false
+      });
     });
 
     this.socket.on('set-participants', async ({ participants }) => {
       this.updateParticipants(participants.map((p: Participant) => ({
         ...p,
         stream: undefined,
-        isCameraEnabled: p.isCameraEnabled ?? false,
-        isMicEnabled: p.isMicEnabled ?? false,
-        isScreenSharing: p.isScreenSharing ?? false
+        // isCameraEnabled: p.isCameraEnabled ?? false,
+        // isMicEnabled: p.isMicEnabled ?? false,
+        // isScreenSharing: p.isScreenSharing ?? false
       })));
     });
 
@@ -165,9 +166,10 @@ export class WebRTCService {
       
       if (participantIndex !== -1) {
         const participant = participants[participantIndex];
-        // console.log(rest, participant, '---------')
 
-        const stream = participant.stream ? new MediaStream(participant.stream.getTracks()) : undefined
+        const stream = participant.stream && (rest.isScreenSharing || rest.isCameraEnabled || rest.isMicEnabled)
+          ? new MediaStream(participant.stream.getTracks())
+          : undefined
 
         participants[participantIndex] = {
           ...participant,
@@ -178,7 +180,7 @@ export class WebRTCService {
         // Если камера выключена, также отключаем видеотрек
         const videoTrack = stream?.getVideoTracks()[0];
         if (videoTrack) {
-          videoTrack.enabled = rest.isCameraEnabled;
+          videoTrack.enabled = rest.isCameraEnabled || rest.isScreenSharing;
         }
         
         this.participants.next(participants);

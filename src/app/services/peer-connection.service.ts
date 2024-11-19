@@ -131,14 +131,14 @@ export class PeerConnectionService {
     return connections;
   }
 
-  async replaceTrack(
-    peerConnection: RTCPeerConnection,
-    oldTrack: MediaStreamTrack,
-    newTrack: MediaStreamTrack
-  ): Promise<void> {
-    const sender = peerConnection.getSenders().find(s => s.track === oldTrack);
-    if (sender) {
-      await sender.replaceTrack(newTrack);
-    }
-  }
+  // async replaceTrack(
+  //   peerConnection: RTCPeerConnection,
+  //   oldTrack: MediaStreamTrack,
+  //   newTrack: MediaStreamTrack
+  // ): Promise<void> {
+  //   const sender = peerConnection.getSenders().find(s => s.track === oldTrack);
+  //   if (sender) {
+  //     await sender.replaceTrack(newTrack);
+  //   }
+  // }
 }
