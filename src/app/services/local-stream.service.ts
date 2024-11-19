@@ -30,8 +30,9 @@ export class LocalStreamService implements OnDestroy {
   ) {
     this.mediaState$.subscribe(state => {
       this.socket.emit('stream-state-changed', {
-        cameraEnabled: state.isCameraEnabled,
-        micEnabled: state.isMicEnabled,
+        isCameraEnabled: state.isCameraEnabled,
+        isMicEnabled: state.isMicEnabled,
+        isScreenSharing: state.isScreenSharing,
         roomId: this.roomService.currentRoomId
       });
     });
@@ -41,7 +42,7 @@ export class LocalStreamService implements OnDestroy {
     return this.mediaState.asObservable();
   }
 
-  async initializeStream(): Promise<void> {
+  async startCameraStream(): Promise<void> {
     this.isLoading.next(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -66,12 +67,10 @@ export class LocalStreamService implements OnDestroy {
     const videoTrack = currentState.stream?.getVideoTracks()[0];
 
     if (videoTrack) {
-      const newCameraState = !currentState.isCameraEnabled;
-      videoTrack.enabled = newCameraState;
 
       this.mediaState.next({
         ...currentState,
-        isCameraEnabled: newCameraState
+        isCameraEnabled: !currentState.isCameraEnabled
       });
     }
   }

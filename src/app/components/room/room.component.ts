@@ -35,7 +35,6 @@ export class RoomComponent implements OnInit, OnDestroy {
     try {
       const success = await this.roomService.joinRoom(roomId);
       if (success) {
-        await this.localStreamService.initializeStream();
         this.isInRoom = true;
       } else {
         this.router.navigate(['/']);

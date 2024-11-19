@@ -6,12 +6,12 @@ import { optimizeVideoQuality, ConnectionQuality } from './webrtc.helper';
 import { UserService } from './user.service';
 import { AudioActivityService } from './audio-activity.service';
 import { PeerConnectionService } from './peer-connection.service';
+import { RoomService } from './room.service';
 
 export interface Participant {
   socketId: string;
   username: string;
   stream?: MediaStream;
-  screenStream?: MediaStream;
   isScreenSharing: boolean;
   isCameraEnabled: boolean;
   isMicEnabled: boolean;
@@ -43,7 +43,8 @@ export class WebRTCService {
     private userService: UserService,
     private audioActivityService: AudioActivityService,
     private localStreamService: LocalStreamService,
-    private peerConnectionService: PeerConnectionService
+    private peerConnectionService: PeerConnectionService,
+    private roomService: RoomService
   ) {
     this.setupSocketListeners();
     this.setupStreamListeners();
@@ -66,8 +67,8 @@ export class WebRTCService {
   private setupStreamListeners(): void {
     // Подписываемся на изменения состояния медиа
     this.localStreamService.mediaState$.subscribe(async (state) => {
+
       if (state.isScreenSharing && state.screenStream) {
-        // Добавляем screen sharing поток ко всем существующим peer connections
         await this.addScreenShareToPeers(state.screenStream);
       }
     });
@@ -158,21 +159,26 @@ export class WebRTCService {
     });
 
      // Добавляем новый слушатель для изменения состояния камеры
-     this.socket.on('stream-state-changed', ({ socketId, cameraEnabled, micEnabled }) => {
+     this.socket.on('stream-state-changed', ({ socketId, ...rest }) => {
       const participants = [...this.participants.value];
       const participantIndex = this.findParticipantIndex(socketId);
       
       if (participantIndex !== -1) {
+        const participant = participants[participantIndex];
+        // console.log(rest, participant, '---------')
+
+        const stream = participant.stream ? new MediaStream(participant.stream.getTracks()) : undefined
+
         participants[participantIndex] = {
-          ...participants[participantIndex],
-          isCameraEnabled: cameraEnabled,
-          isMicEnabled: micEnabled,
+          ...participant,
+          ...rest,
+          stream
         };
         
         // Если камера выключена, также отключаем видеотрек
-        const videoTrack = participants[participantIndex].stream?.getVideoTracks()[0];
+        const videoTrack = stream?.getVideoTracks()[0];
         if (videoTrack) {
-          videoTrack.enabled = cameraEnabled;
+          videoTrack.enabled = rest.isCameraEnabled;
         }
         
         this.participants.next(participants);
@@ -317,7 +323,6 @@ export class WebRTCService {
     if (!event.streams || event.streams.length === 0) return;
 
     const stream = event.streams[0];
-    const track = event.track;
     const participants = [...this.participants.value];
     const participantIndex = this.findParticipantIndex(socketId);
 
@@ -325,21 +330,12 @@ export class WebRTCService {
 
     const participant = participants[participantIndex];
 
-    // Определяем тип трека (screen sharing или обычный)
-    if (track.kind === 'video' && track.label.includes('screen')) {
-      participants[participantIndex] = {
-        ...participant,
-        screenStream: stream,
-        isScreenSharing: true
-      };
-    } else {
-      participants[participantIndex] = {
-        ...participant,
-        stream: stream,
-        isSpeaking: false
-      };
-      this.handleSpeaking(stream, socketId);
-    }
+    participants[participantIndex] = {
+      ...participant,
+      stream: stream,
+      isSpeaking: false
+    };
+    this.handleSpeaking(stream, socketId);
 
     this.participants.next(participants);
   }

@@ -7,8 +7,6 @@
       <app-video
         *ngIf="participant.username !== this.username"
         [stream]="participant.stream"
-        [screenStream]="participant.screenStream"
-        [isScreenSharing]="participant.isScreenSharing"
         [username]="participant.username"
         [isLoading]="!participant.stream?.active"
         [muted]="!participant.isMicEnabled"

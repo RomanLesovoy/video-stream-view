@@ -12,25 +12,21 @@ export class PreviewComponent implements OnInit, OnDestroy {
   streamIsLoading: Observable<boolean>;
   username: string;
   stream$!: Observable<MediaStream | undefined>;
-  screenStream$!: Observable<MediaStream | undefined>;
-  isScreenSharing$!: Observable<boolean>;
 
   constructor(
     private localStreamService: LocalStreamService,
     private userService: UserService,
   ) {
-    const mediaState$ = this.localStreamService.mediaState$;
-    
-    this.stream$ = mediaState$.pipe(map(state => state.stream));
-    this.screenStream$ = mediaState$.pipe(map(state => state.screenStream));
-    this.isScreenSharing$ = mediaState$.pipe(map(state => state.isScreenSharing));
+    this.stream$ = this.localStreamService.mediaState$.pipe(
+      map(state => state.isScreenSharing ? state.screenStream : state.stream)
+    );
     
     this.streamIsLoading = this.localStreamService.isLoading$;
     this.username = this.userService.getUsername();
   }
 
   ngOnInit() {
-    this.localStreamService.initializeStream();
+    this.localStreamService.startCameraStream();
   }
 
   ngOnDestroy() {
