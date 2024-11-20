@@ -1,6 +1,6 @@
 import { Inject, Injectable, isDevMode } from '@angular/core';
 import { Socket } from 'socket.io-client';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, debounceTime, firstValueFrom } from 'rxjs';
 import { LocalStreamService } from './local-stream.service';
 import { optimizeVideoQuality, ConnectionQuality } from './webrtc.helper';
 import { UserService } from './user.service';
@@ -72,28 +72,30 @@ export class WebRTCService {
   }
 
   private setupStreamListeners(): void {
-    this.localStreamService.mediaState$.subscribe(async (state) => {
-      if (!this.roomService.currentRoomId) return;
+    this.localStreamService.mediaState$
+      .pipe(debounceTime(100))
+      .subscribe(async (state) => {
+        if (!this.roomService.currentRoomId) return;
 
-      const peers = Array.from(this.peerConnectionService.getAllConnections());
-      
-      // Change video track for all peers
-      for (const [socketId, peerConnection] of peers) {
-        try {
-          const senders = peerConnection.getSenders();
-          const videoSender = senders.find(s => s.track?.kind === 'video');
-          
-          if (videoSender && state.stream) {
-            const newTrack = state.stream.getVideoTracks()[0];
-            if (newTrack) {
-              await videoSender.replaceTrack(newTrack);
+        const peers = Array.from(this.peerConnectionService.getAllConnections());
+        
+        // Change video track for all peers
+        for (const [socketId, peerConnection] of peers) {
+          try {
+            const senders = peerConnection.getSenders();
+            const videoSender = senders.find(s => s.track?.kind === 'video');
+            
+            if (videoSender && state.stream) {
+              const newTrack = state.stream.getVideoTracks()[0];
+              if (newTrack) {
+                await videoSender.replaceTrack(newTrack);
+              }
             }
+          } catch (error) {
+            console.error('[WebRTC] Error replacing track:', error);
           }
-        } catch (error) {
-          console.error('[WebRTC] Error replacing track:', error);
         }
-      }
-    });
+      });
   }
 
   private startOptimization(): void {

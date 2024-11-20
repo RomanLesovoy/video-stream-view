@@ -151,8 +151,16 @@ export class LocalStreamService implements OnDestroy {
 
   private async getUserMedia(): Promise<MediaStream> {
     return navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true
+      video: {
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 24 }
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
     });
   }
 

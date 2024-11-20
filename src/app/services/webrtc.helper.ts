@@ -37,23 +37,23 @@ export async function optimizeVideoQuality(
       switch (quality) {
         case 'poor':
           debug(`Applying poor quality settings for ${socketId}`);
-          parameters.encodings[0].maxBitrate = 150000; // 150 kbps
-          parameters.encodings[0].scaleResolutionDownBy = 4; // 1/4 разрешения
+          parameters.encodings[0].maxBitrate = 100000; // 100 kbps
+          parameters.encodings[0].scaleResolutionDownBy = 3; // 1/4 разрешения
           parameters.encodings[0].maxFramerate = 15;
           break;
 
         case 'medium':
           debug(`Applying medium quality settings for ${socketId}`);
-          parameters.encodings[0].maxBitrate = 500000; // 500 kbps
+          parameters.encodings[0].maxBitrate = 350000; // 350 kbps
           parameters.encodings[0].scaleResolutionDownBy = 2; // 1/2 разрешения
-          parameters.encodings[0].maxFramerate = 24;
+          parameters.encodings[0].maxFramerate = 20;
           break;
 
         case 'good':
           debug(`Applying high quality settings for ${socketId}`);
-          parameters.encodings[0].maxBitrate = 2500000; // 2.5 Mbps
+          parameters.encodings[0].maxBitrate = 1000000; // 1 Mbps
           parameters.encodings[0].scaleResolutionDownBy = 1; // Полное разрешение
-          parameters.encodings[0].maxFramerate = 30;
+          parameters.encodings[0].maxFramerate = 24;
           break;
       }
 
@@ -69,8 +69,8 @@ export async function optimizeVideoQuality(
 }
 
 export function analyzeConnectionQuality(metrics: ConnectionQualityMetrics): Quality {
-  const POOR_BITRATE = 500000;    // 500 kbps
-  const GOOD_BITRATE = 2000000;   // 2 Mbps
+  const POOR_BITRATE = 150000;    // 150 kbps
+  const GOOD_BITRATE = 1000000;   // 1 Mbps
   const HIGH_PACKET_LOSS = 2;     // 2%
   const HIGH_RTT = 150;           // 150ms
 
