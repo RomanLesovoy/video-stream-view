@@ -74,12 +74,12 @@ export class WebRTCService {
   private setupStreamListeners(): void {
     this.localStreamService.mediaState$
       .pipe(
-        debounceTime(100),
-        // distinctUntilChanged((prev, curr) => {
-        //   return prev.stream?.id === curr.stream?.id && 
-        //     prev.isCameraEnabled === curr.isCameraEnabled &&
-        //     prev.isScreenSharing === curr.isScreenSharing;
-        // })
+        // debounceTime(50),
+        distinctUntilChanged((prev, curr) => {
+          return prev.stream?.id === curr.stream?.id && 
+            prev.isCameraEnabled === curr.isCameraEnabled &&
+            prev.isScreenSharing === curr.isScreenSharing;
+        })
       )
       .subscribe(async (state) => {
         if (!this.roomService.currentRoomId) return;
@@ -87,7 +87,7 @@ export class WebRTCService {
         const peers = Array.from(this.peerConnectionService.getAllConnections());
         
         // Change video track for all peers
-        for (const [socketId, peerConnection] of peers) {
+        for (const [_socketId, peerConnection] of peers) {
           try {
             const senders = peerConnection.getSenders();
             const videoSender = senders.find(s => s.track?.kind === 'video');
@@ -113,7 +113,7 @@ export class WebRTCService {
     this.optimizationInterval = setInterval(async () => {
       const quality = await optimizeVideoQuality(this.stateConnections, this.lastStats, this.debug);
       this.connectionQuality.next(quality);
-    }, 8000);
+    }, 5000);
   }
 
   private debug = (...args: any[]) => {
@@ -197,9 +197,9 @@ export class WebRTCService {
         
         // Disable video track if camera is disabled
         const videoTrack = stream?.getVideoTracks()[0];
-        // if (videoTrack) {
-        //   videoTrack.enabled = rest.isCameraEnabled || rest.isScreenSharing;
-        // }
+        if (videoTrack) {
+          videoTrack.enabled = rest.isCameraEnabled || rest.isScreenSharing;
+        }
         
         this.participants.next(participants);
       }
