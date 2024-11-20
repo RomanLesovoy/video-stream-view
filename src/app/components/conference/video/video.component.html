@@ -13,12 +13,14 @@
     <span class="material-icons">volume_up</span>
   </div>
 
-  <div
-    class="preview-avatar"
-    [style.backgroundColor]="this.randomColor"
-    *ngIf="!participantActive"
-  >
-    {{ this.username.substring(0, 1) }}
+  <div class="video-preview" *ngIf="!participantActive">
+    <div
+      class="preview-avatar"
+      [style.backgroundColor]="this.randomColor"
+    >
+      {{ this.username.substring(0, 1) }}
+    </div>
   </div>
+
   <app-loader [loading]="this.isLoading"></app-loader>
 </section>

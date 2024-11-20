@@ -89,14 +89,34 @@ export class LocalStreamService implements OnDestroy {
   async toggleCamera(): Promise<void> {
     const currentState = this.mediaState.value;
     
-    if (currentState.isCameraEnabled) {
-      await this.stopVideoTracks();
+    // if (currentState.isCameraEnabled) {
+    //   await this.stopVideoTracks();
 
-      this.updateMediaState({ isCameraEnabled: false });
+    //   this.updateMediaState({ isCameraEnabled: false });
+    // } else {
+    //   const videoTrack = await this.getVideoTrack();
+    //   currentState.stream?.addTrack(videoTrack);
+    //   this.updateMediaState({ isCameraEnabled: true });
+    // }
+  
+    if (currentState.isCameraEnabled) {
+      const videoTrack = currentState.stream?.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = false;
+        this.updateMediaState({ isCameraEnabled: false });
+      }
     } else {
-      const videoTrack = await this.getVideoTrack();
-      currentState.stream?.addTrack(videoTrack);
-      this.updateMediaState({ isCameraEnabled: true });
+      const existingTrack = currentState.stream?.getVideoTracks()[0];
+      if (existingTrack) {
+        existingTrack.enabled = true;
+        this.updateMediaState({ isCameraEnabled: true });
+      } else {
+        const videoTrack = await this.getVideoTrack();
+        if (currentState.stream) {
+          currentState.stream.addTrack(videoTrack);
+          this.updateMediaState({ isCameraEnabled: true });
+        }
+      }
     }
   }
 

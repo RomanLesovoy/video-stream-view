@@ -19,18 +19,19 @@ export class VideoComponent implements OnChanges {
 
   public randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
-  get isVideoEnabled(): boolean {
-    if (!this.stream?.active) return false;
+  // get isVideoEnabled(): boolean {
+  //   if (!this.stream?.active) return false;
     
-    const videoTrack = this.getVideoTrack();
-    if (!videoTrack) return false;
+  //   const videoTrack = this.getVideoTrack();
+  //   if (!videoTrack) return false;
 
-    return videoTrack?.enabled && videoTrack?.readyState === 'live';
-  }
+  //   return videoTrack?.enabled && this.participantActive && videoTrack?.readyState === 'live';
+  // }
 
   ngOnChanges(changes: SimpleChanges) {
     if ((changes['stream']) && this.videoElement) {
-      this.updateVideoStream();
+      // this.updateVideoStream();
+      this.videoElement.nativeElement.srcObject = this.stream!;
     }
   }
 
@@ -42,16 +43,17 @@ export class VideoComponent implements OnChanges {
     return this.stream?.getVideoTracks()[0];
   }
 
-  private updateVideoStream() {
-    if (this.videoElement?.nativeElement) {
-      const video = this.videoElement.nativeElement;
+  // private updateVideoStream() {
+  //   if (this.videoElement?.nativeElement) {
+  //     const video = this.videoElement.nativeElement;
       
-      if (this.isVideoEnabled) {
-        video.srcObject = this.stream!;
-      } else {
-        console.log('[VIDEO] No active stream for:', this.username);
-        video.srcObject = null;
-      }
-    }
-  }
+  //     if (this.isVideoEnabled) {
+  //       video.srcObject = this.stream!;
+  //       console.debug('[VideoComponent] Video stream updated for:', this.username);
+  //     } else {
+  //       console.log('[VIDEO] No active stream for:', this.username);
+  //       video.srcObject = null;
+  //     }
+  //   }
+  // }
 }

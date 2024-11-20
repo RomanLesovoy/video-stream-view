@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@angular/core';
+import { Injectable, Inject, OnDestroy } from '@angular/core';
 import { Socket } from 'socket.io-client';
 import { BehaviorSubject } from 'rxjs';
 import { RoomService } from './room.service';
@@ -21,7 +21,7 @@ export interface ChatState {
 @Injectable({
   providedIn: 'root'
 })
-export class ChatService {
+export class ChatService implements OnDestroy {
   private chatState = new BehaviorSubject<ChatState>({
     messages: [],
     unreadCount: 0,
@@ -42,6 +42,10 @@ export class ChatService {
         this.removeSocketListeners();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.removeSocketListeners();
   }
 
   private setupSocketListeners(): void {

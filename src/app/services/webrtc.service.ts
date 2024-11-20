@@ -1,6 +1,6 @@
 import { Inject, Injectable, isDevMode } from '@angular/core';
 import { Socket } from 'socket.io-client';
-import { BehaviorSubject, debounceTime, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { LocalStreamService } from './local-stream.service';
 import { optimizeVideoQuality, ConnectionQuality } from './webrtc.helper';
 import { UserService } from './user.service';
@@ -73,7 +73,14 @@ export class WebRTCService {
 
   private setupStreamListeners(): void {
     this.localStreamService.mediaState$
-      .pipe(debounceTime(100))
+      .pipe(
+        debounceTime(100),
+        // distinctUntilChanged((prev, curr) => {
+        //   return prev.stream?.id === curr.stream?.id && 
+        //     prev.isCameraEnabled === curr.isCameraEnabled &&
+        //     prev.isScreenSharing === curr.isScreenSharing;
+        // })
+      )
       .subscribe(async (state) => {
         if (!this.roomService.currentRoomId) return;
 
