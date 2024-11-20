@@ -16,6 +16,7 @@ export interface Participant {
   isCameraEnabled: boolean;
   isMicEnabled: boolean;
   isSpeaking: boolean;
+  active: boolean;
 }
 
 interface PeerState {
@@ -55,6 +56,12 @@ export class WebRTCService {
       this.clearPeerConnections();
     });
 
+    this.roomService.currentRoom$.subscribe(room => {
+      if (!room) {
+        this.clearPeerConnections();
+      }
+    });
+
     this.startOptimization();
   }
 
@@ -70,7 +77,7 @@ export class WebRTCService {
 
       const peers = Array.from(this.peerConnectionService.getAllConnections());
       
-      // Для всех пиров заменяем видеотрек
+      // Change video track for all peers
       for (const [socketId, peerConnection] of peers) {
         try {
           const senders = peerConnection.getSenders();
@@ -123,10 +130,15 @@ export class WebRTCService {
     await this.createPeerConnection(socketId, this.userService.getUsername());
   }
 
-  // Инициализация слушателей сокетов
+  private setParticipantActive(participant: Participant, stream: MediaStream | undefined): void {
+    participant.active = stream
+      && stream.active
+      && (participant.isScreenSharing || participant.isCameraEnabled)
+      || false;
+  }
+
   private setupSocketListeners(): void {
-    // Когда новый пользователь присоединяется
-    this.socket.on('user-joined', async ({ socketId, username }) => {
+    this.socket.on('user-joined', async ({ socketId, username, ...rest }) => {
       const participantIndex = this.findParticipantIndex(socketId);
       const newParticipant = {
         socketId,
@@ -134,7 +146,9 @@ export class WebRTCService {
         isCameraEnabled: true,
         isMicEnabled: true,
         isSpeaking: false,
-        isScreenSharing: false
+        isScreenSharing: false,
+        active: true,
+        ...rest,
       };
 
       if (participantIndex !== -1) {
@@ -155,7 +169,6 @@ export class WebRTCService {
       })));
     });
 
-     // Добавляем новый слушатель для изменения состояния камеры
      this.socket.on('stream-state-changed', ({ socketId, ...rest }) => {
       const participants = [...this.participants.value];
       const participantIndex = this.findParticipantIndex(socketId);
@@ -164,54 +177,47 @@ export class WebRTCService {
         const participant = participants[participantIndex];
         const stream = participant.stream;
 
-        // const stream = participant.stream && (rest.isScreenSharing || rest.isCameraEnabled || rest.isMicEnabled)
-        //   ? new MediaStream(participant.stream.getTracks())
-        //   : undefined
-
-        participants[participantIndex] = {
+        const newParticipant = {
           ...participant,
           ...rest,
           stream
         };
+
+        this.setParticipantActive(newParticipant, stream);
+        participants[participantIndex] = newParticipant;
         
-        // Если камера выключена, также отключаем видеотрек
+        // Disable video track if camera is disabled
         const videoTrack = stream?.getVideoTracks()[0];
-        if (videoTrack) {
-          videoTrack.enabled = rest.isCameraEnabled || rest.isScreenSharing;
-        }
+        // if (videoTrack) {
+        //   videoTrack.enabled = rest.isCameraEnabled || rest.isScreenSharing;
+        // }
         
         this.participants.next(participants);
       }
     });
 
-    // Когда пользователь покидает комнату
     this.socket.on('user-left', ({ socketId }) => {
       this.handleUserLeft(socketId);
     });
 
-    // Когда получаем запрос на offer
     this.socket.on('request-offer', async ({ socketId }) => {
       await this.localStreamService.ensureLocalStream();
       await this.createAndSendOffer(socketId);
     });
 
-    // Обработка входящего offer
     this.socket.on('offer', async ({ offer, from }) => {
       await this.handleOffer(offer, from);
     });
 
-    // Обработка входящего answer
     this.socket.on('answer', ({ answer, from }) => {
       this.handleAnswer(answer, from);
     });
 
-    // Обработка ICE кандидатов
     this.socket.on('ice-candidate', ({ candidate, from }) => {
       this.handleIceCandidate(candidate, from);
     });
   }
 
-  // Создание нового RTCPeerConnection
   private async createPeerConnection(socketId: string, username: string): Promise<RTCPeerConnection> {
     await this.localStreamService.ensureLocalStream();
     const localStream = this.localStreamService.getStream();
@@ -240,7 +246,6 @@ export class WebRTCService {
     return peerConnection;
   }
 
-  // Создание и отправка offer
   private async createAndSendOffer(socketId: string): Promise<void> {
     try {
       this.debug('Creating offer for:', socketId);
@@ -265,7 +270,6 @@ export class WebRTCService {
     return peerConnection;
   }
 
-  // Обработка входящего offer
   private async handleOffer(offer: RTCSessionDescriptionInit, from: string): Promise<void> {
     try {
       this.debug('Handling offer from:', from);
@@ -285,7 +289,6 @@ export class WebRTCService {
     }
   }
 
-  // Обработка входящего answer
   private async handleAnswer(answer: RTCSessionDescriptionInit, from: string): Promise<void> {
     try {
       await this.peerConnectionService.handleAnswer(from, answer);
@@ -294,7 +297,6 @@ export class WebRTCService {
     }
   }
 
-  // Обработка ICE кандидатов
   private async handleIceCandidate(candidate: RTCIceCandidateInit, from: string): Promise<void> {
     try {
       await this.peerConnectionService.handleIceCandidate(from, candidate);
@@ -317,7 +319,6 @@ export class WebRTCService {
     });
   }
 
-  // Обработка входящих медиа треков
   private handleTrackEvent(event: RTCTrackEvent, socketId: string): void {
     if (!event.streams || event.streams.length === 0) return;
 
@@ -328,14 +329,16 @@ export class WebRTCService {
     if (participantIndex === -1) return;
 
     const participant = participants[participantIndex];
-
-    participants[participantIndex] = {
+    const newParticipant = {
       ...participant,
       stream: stream,
       isSpeaking: false
-    };
-    this.handleSpeaking(stream, socketId);
+    }
+        
+    this.setParticipantActive(newParticipant, stream);
 
+    participants[participantIndex] = newParticipant;
+    this.handleSpeaking(stream, socketId);
     this.participants.next(participants);
   }
 
@@ -343,7 +346,6 @@ export class WebRTCService {
     return this.participants.value.findIndex(p => p.socketId === socketId);
   }
 
-  // Обработка выхода пользователя
   private handleUserLeft(socketId: string): void {
     this.audioActivityService.stopAnalyser(socketId);
     this.peerConnectionService.closeConnection(socketId);
@@ -351,12 +353,10 @@ export class WebRTCService {
     this.participants.next(participants);
   }
 
-  // Обновление списка участников
   public updateParticipants(participants: Participant[]): void {
     this.participants.next(participants);
   }
 
-  // Очистка всех соединений при выходе из комнаты
   public clearPeerConnections(): void {
     this.peerConnectionService.clearAllConnections();
     this.participants.next([]);

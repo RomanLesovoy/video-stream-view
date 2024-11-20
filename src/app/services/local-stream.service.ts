@@ -27,10 +27,11 @@ export class LocalStreamService implements OnDestroy {
     @Inject('socket') private socket: Socket,
     private roomService: RoomService
   ) {
-    // Отправляем состояние стрима другим участникам
-    this.mediaState$.subscribe(state => {
-      this.emitStreamState(state);
-    });
+    this.mediaState$
+      // .pipe(debounceTime(200))
+      .subscribe(state => {
+        this.emitStreamState(state);
+      });
   }
 
   get mediaState$(): Observable<MediaState> {
@@ -50,18 +51,7 @@ export class LocalStreamService implements OnDestroy {
         if (!this.getStream()) {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
-        
-        // Применяем сохраненное состояние после получения стрима
-        // const currentState = this.mediaState.value;
-        // if (!currentState.isCameraEnabled) {
-        //   await this.stopVideoTracks();
-        // }
-        // if (!currentState.isMicEnabled) {
-        //   const audioTrack = currentState.stream?.getAudioTracks()[0];
-        //   if (audioTrack) {
-        //     audioTrack.enabled = false;
-        //   }
-        // }
+
       }
     } catch (error) {
       console.error('[LocalStream] Error:', error);
@@ -71,7 +61,6 @@ export class LocalStreamService implements OnDestroy {
     }
   }
 
-  // Инициализация начального медиа стрима
   async startCameraStream(): Promise<void> {
     try {
       const stream = await this.getUserMedia();
@@ -82,7 +71,6 @@ export class LocalStreamService implements OnDestroy {
     }
   }
 
-  // Переключение микрофона
   toggleMicrophone(): void {
     const currentState = this.mediaState.value;
     const audioTrack = currentState.stream?.getAudioTracks()[0];
@@ -91,7 +79,6 @@ export class LocalStreamService implements OnDestroy {
       const newMicState = !currentState.isMicEnabled;
       audioTrack.enabled = newMicState;
     
-      // Обновляем стрим для триггера изменений
       this.updateMediaState({ 
         isMicEnabled: newMicState,
         stream: new MediaStream([...currentState.stream!.getTracks()])
@@ -99,7 +86,6 @@ export class LocalStreamService implements OnDestroy {
     }
   }
 
-  // Переключение камеры
   async toggleCamera(): Promise<void> {
     const currentState = this.mediaState.value;
     
@@ -114,7 +100,6 @@ export class LocalStreamService implements OnDestroy {
     }
   }
 
-  // Переключение screen sharing
   async toggleScreenSharing(): Promise<void> {
     const currentState = this.mediaState.value;
     
@@ -131,6 +116,7 @@ export class LocalStreamService implements OnDestroy {
   }
 
   private async _launchCamera() {
+    this.setLoading(true);
     const currentState = this.mediaState.value;
     await this.stopVideoTracks();
     const videoTrack = await this.getVideoTrack();
@@ -141,9 +127,11 @@ export class LocalStreamService implements OnDestroy {
       isScreenSharing: false,
       isCameraEnabled: true
     });
+    this.setLoading(false);
   }
 
   private async _launchScreen() {
+    this.setLoading(true);
     const currentState = this.mediaState.value;
     await this.stopVideoTracks();
     const screenTrack = await this.getScreenTrack();
@@ -154,13 +142,13 @@ export class LocalStreamService implements OnDestroy {
       isScreenSharing: true,
       isCameraEnabled: false
     });
+    this.setLoading(false);
   }
 
   ngOnDestroy(): void {
     this.stopStream();
   }
 
-  // Private helper methods
   private async getUserMedia(): Promise<MediaStream> {
     return navigator.mediaDevices.getUserMedia({
       video: true,
@@ -176,10 +164,9 @@ export class LocalStreamService implements OnDestroy {
   private async getScreenTrack(): Promise<MediaStreamTrack> {
     const stream = await navigator.mediaDevices.getDisplayMedia({ 
       video: true,
-      audio: false 
+      audio: true, 
     });
-    
-    // Обработка системного события остановки screen sharing
+
     stream.getVideoTracks()[0].addEventListener('ended', () => {
       this.toggleScreenSharing();
     });
@@ -201,9 +188,6 @@ export class LocalStreamService implements OnDestroy {
 
     this.updateMediaState({
       stream: undefined,
-      // isCameraEnabled: true,
-      // isMicEnabled: true,
-      // isScreenSharing: false
     });
   }
 

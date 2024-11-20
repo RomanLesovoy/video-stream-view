@@ -3,6 +3,8 @@
     [stream]="stream$ | async"
     [username]="this.username"
     [localStream]="true"
+    [isScreenSharing]="(this.isScreenSharing | async) ?? false"
+    [participantActive]="(this.stream$ | async)?.active ?? false"
     [isLoading]="(this.streamIsLoading | async) ?? true"
     [muted]="true">
   </app-video>

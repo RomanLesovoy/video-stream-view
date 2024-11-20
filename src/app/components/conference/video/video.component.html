@@ -1,17 +1,22 @@
-<section class="video-container" [class.speaking]="isSpeaking && !localStream" [class.localStream]="this.localStream">
-  <video #videoElement autoplay playsinline [muted]="isMuted"></video>
+<section
+  class="video-container"
+  [class.speaking]="getSpeakingIndicatorActive()"
+  [class.localStream]="this.localStream"
+  [class.isScreenSharing]="this.isScreenSharing"
+>
+  <video #videoElement autoplay playsinline [muted]="muted"></video>
   <p *ngIf="username" class="username-label">{{ this.localStream ? 'You' : username }}</p>
   <p *ngIf="quality" [class]="'quality-label ' + quality">Quality:{{ quality }}</p>
-  <p *ngIf="isMuted && !localStream" class="muted-label">muted</p>
+  <p *ngIf="muted && !localStream" class="muted-label">muted</p>
 
-  <div class="speaking-indicator" *ngIf="isSpeaking && !localStream">
+  <div class="speaking-indicator" *ngIf="getSpeakingIndicatorActive()">
     <span class="material-icons">volume_up</span>
   </div>
 
   <div
     class="preview-avatar"
     [style.backgroundColor]="this.randomColor"
-    *ngIf="!this.isVideoEnabled"
+    *ngIf="!participantActive"
   >
     {{ this.username.substring(0, 1) }}
   </div>

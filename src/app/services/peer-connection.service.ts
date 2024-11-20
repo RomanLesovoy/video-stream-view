@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import { MediaState } from './local-stream.service';
 
 export interface PeerState {
   connection: RTCPeerConnection;
@@ -30,15 +29,13 @@ export class PeerConnectionService {
     onIceCandidate: (candidate: RTCIceCandidate) => void
   ): Promise<RTCPeerConnection> {
     const peerConnection = new RTCPeerConnection(this.configuration);
-    
-    // Добавляем локальные треки
+
     if (localStream) {
       localStream.getTracks().forEach(track => {
         peerConnection.addTrack(track, localStream);
       });
     }
 
-    // Обработчики событий
     peerConnection.ontrack = onTrack;
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -46,7 +43,6 @@ export class PeerConnectionService {
       }
     };
 
-    // Сохраняем состояние
     this.stateConnections.set(socketId, {
       connection: peerConnection,
       username,

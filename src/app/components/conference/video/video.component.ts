@@ -11,7 +11,9 @@ export class VideoComponent implements OnChanges {
   @Input() isLoading = false;
   @Input({ required: true }) username!: string;
   @Input() muted = false;
+  @Input({ required: true }) participantActive = false;
   @Input() localStream = false;
+  @Input({ required: true }) isScreenSharing = false;
   @Input() quality: 'poor' | 'medium' | 'good' = 'good';
   @Input() isSpeaking: boolean | undefined = false;
 
@@ -32,12 +34,12 @@ export class VideoComponent implements OnChanges {
     }
   }
 
-  getVideoTrack() {
-    return this.stream?.getVideoTracks()[0];
+  getSpeakingIndicatorActive() {
+    return this.isSpeaking && !this.muted && !this.localStream;
   }
 
-  public get isMuted() {
-    return this.muted || this.getVideoTrack()?.muted;
+  getVideoTrack() {
+    return this.stream?.getVideoTracks()[0];
   }
 
   private updateVideoStream() {
@@ -45,7 +47,7 @@ export class VideoComponent implements OnChanges {
       const video = this.videoElement.nativeElement;
       
       if (this.isVideoEnabled) {
-        video.srcObject = this.stream ?? null;
+        video.srcObject = this.stream!;
       } else {
         console.log('[VIDEO] No active stream for:', this.username);
         video.srcObject = null;

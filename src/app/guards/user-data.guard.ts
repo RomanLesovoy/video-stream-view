@@ -3,7 +3,7 @@ import {
   CanActivate, 
   CanActivateChild,
   Router, 
-  UrlTree 
+  UrlTree,
 } from '@angular/router';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -19,12 +19,14 @@ export class UserDataGuard implements CanActivate, CanActivateChild {
   ) {}
 
   canActivate(): Observable<boolean | UrlTree> {
+    const redirectTo = location.pathname;
+
     return this.userService.username$.pipe(
       map(username => {
         if (username.trim().length > 2) {
           return true;
         }
-        return this.router.createUrlTree(['/user-data']);
+        return this.router.createUrlTree(['/user-data'], { queryParams: { redirectTo } });
       })
     );
   }

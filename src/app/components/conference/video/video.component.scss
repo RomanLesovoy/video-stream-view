@@ -10,6 +10,11 @@
   height: 240px;
   overflow: hidden;
 
+  &.isScreenSharing {
+    width: 100%;
+    height: 100%;
+  }
+
   &.speaking {
     box-shadow: 0 0 0 5px #544caf, 0 0 10px rgba(76, 84, 175, 1);
     animation: pulse 1.5s ease infinite;

@@ -13,6 +13,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   streamIsLoading: Observable<boolean>;
   username: string;
   stream$!: Observable<MediaStream | undefined>;
+  isScreenSharing;
   roomId: string | null = null;
 
   constructor(
@@ -21,6 +22,9 @@ export class PreviewComponent implements OnInit, OnDestroy {
     private roomService: RoomService
   ) {
     this.roomService.currentRoom$.subscribe(room => this.roomId = room?.id ?? null);
+    this.isScreenSharing = this.localStreamService.mediaState$.pipe(
+      map(state => state.isScreenSharing)
+    );
     this.stream$ = this.localStreamService.mediaState$.pipe(
       map(state => state.isScreenSharing
         ? state.stream

@@ -9,9 +9,11 @@
         [stream]="participant.stream"
         [username]="participant.username"
         [isLoading]="!participant.stream"
+        [participantActive]="participant.active"
+        [isScreenSharing]="participant.isScreenSharing"
         [muted]="!participant.isMicEnabled"
         [isSpeaking]="participant.isSpeaking"
-        [quality]="(connectionQuality$(participant) | async)?.quality || 'good'">
+        [quality]="(connectionQuality$(participant) | async)?.quality || 'medium'">
       </app-video>
     </div>
   </section>
